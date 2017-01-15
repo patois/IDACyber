@@ -41,8 +41,7 @@ class ScreenEAHook(UI_Hooks):
 # -----------------------------------------------------------------------
 
 
-class SignalHandler(QObject):
-    
+class SignalHandler(QObject):    
     pw_statechanged = pyqtSignal()
     ida_newea = pyqtSignal()
 
@@ -50,7 +49,6 @@ class SignalHandler(QObject):
 
 
 class IDBSegment():
-
     # TODO: lazyload based on total mem, instead of based on seg size
     def __init__(self, seg, threshold=1024*1024*4):
         self.base = 0
@@ -102,25 +100,21 @@ class IDBSegment():
                 self.dolazyload = False
         return buf if buf is not None else ""
         
-
     def __contains__(self, ea):
         return ((self.buf and not self.dolazyload) or \
                (not self.buf and self.dolazyload)) and \
                ea >= self.base and ea < self.base + self.size
-
 
 class IDBBufHandler():
     def __init__(self, loaderSegmentsOnly=False):
         self.segments = []
         self._init()
 
-
     def _init(self):
         for i in xrange(get_segm_qty()):
             seg = getnseg(i)
             if seg is not None:
                 self.segments.append(IDBSegment(seg))
-
 
     def get_buf(self, ea, count=0):
         buf = ""
@@ -134,7 +128,6 @@ class IDBBufHandler():
                 break
         return buf
 
-
     def get_base(self, ea):
         base = BADADDR
         for seg in self.segments:
@@ -147,13 +140,12 @@ class IDBBufHandler():
 
     
 class PixelWidget(QWidget):
-    
     def __init__(self, form, bufhandler):
         super(PixelWidget, self).__init__()
 
         self.form = form
-        self.pixelSize = 3
-        self.maxPixelsPerLine = 64
+        self.pixelSize = 5
+        self.maxPixelsPerLine = 32
         self.maxPixelsTotal = 0
         self.y = 0
         self.key = None
@@ -175,162 +167,17 @@ class PixelWidget(QWidget):
         
         self.show()
 
-
     def paintEvent(self, event):
         qp = QPainter()
         qp.begin(self)
         self._plot_buffer(qp)
         qp.end()
 
-
-    def keyPressEvent(self, event):
-        self.key = event.key()
-        if self.key == Qt.Key_G:
-            addr = AskAddr(self.base + self.offs, "Jump to address")
-            if addr is not None:
-                jumpto(addr)
-        elif self.key == Qt.Key_F12:
-            print "TODO: implement pic export"
-
-
-    def keyReleaseEvent(self, event):
-        self.key = None
-        
-
-    def mousePressEvent(self, event):
-        self.y = event.pos().y()
-        if event.button() == Qt.RightButton:
-            self.fm.on_right_click(self.get_cursor_address())
-
-
-    def mouseReleaseEvent(self, event):
-        if self.get_sync_state():
-            jumpto(self.base + self.offs)
-            self.activateWindow()
-            self.setFocus()
-            self.statechanged.emit()
-
-
-    def mouseDoubleClickEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            addr = self.base + self.offs + self._get_offs_by_pos(event.pos())
-            jumpto(addr)
-
-
-    def wheelEvent(self, event):
-        if self.key == Qt.Key_Control:
-            self.pixelSize = max(1, self.pixelSize + event.angleDelta().y()/120)
-            
-        elif self.key == Qt.Key_Q:
-            self.maxPixelsPerLine += event.angleDelta().y()/120
-            self.maxPixelsPerLine = max(1, self.maxPixelsPerLine)
-            
-        elif self.key == Qt.Key_Shift:
-            self.offs -= event.angleDelta().y()/120
-            self.offs = max(0, self.offs)
-            if self.get_sync_state():
-                jumpto(self.base + self.offs)
-                self.activateWindow()
-                self.setFocus()
-            
-        else:
-            self.offs -= event.angleDelta().y()/120 * self.maxPixelsPerLine
-            self.offs = max(0, self.offs)
-            if self.get_sync_state():
-                jumpto(self.base + self.offs)
-                self.activateWindow()
-                self.setFocus()
-
-        self.statechanged.emit()
-        self.repaint()
-        
-
-    def mouseMoveEvent(self, event):
-        y = event.pos().y()
-        
-        if event.buttons() == Qt.NoButton:
-            self.mouseOffs = self._get_offs_by_pos(event.pos())
-            self.setToolTip(self.fm.get_tooltip(self.get_cursor_address()))
-        
-        elif self.key == Qt.Key_Control:
-            self.pixelSize = max(1, self.pixelSize + (-1 if y > self.y else 1))
-            self.y = y
-
-        elif self.key == Qt.Key_Q:
-            self.maxPixelsPerLine = max(1, self.maxPixelsPerLine + (-1 if y > self.y else 1))
-            self.y = y
-
-        elif y != self.y:
-            delta = y - self.y
-
-            # fine movement
-            if self.key != Qt.Key_Shift:
-                delta *= self.maxPixelsPerLine
-                
-            self.offs -= delta
-            #self.offs = min(max(0, self.offs), len(self.buf)-1)
-            self.offs = max(0, self.offs)
-            self.y = y
-            
-        self.statechanged.emit()
-        self.repaint()
-
-
-    def set_sync_state(self, sync):
-        self.sync = sync
-
-
-    def get_sync_state(self):
-        return self.sync
-    
-
-    def set_cursor_state(self, sync):
-        self.showcursor = sync
-
-
-    def get_cursor_state(self):
-        return self.showcursor
-
-
-    def set_filter(self, filter, idx):
-        self.fm = filter
-        self.fm.on_activate(idx)
-        self.repaint()
-
-
-    def set_addr(self, ea):
-        base = self.bh.get_base(ea)
-        self._set_base(base)
-        self._set_offs(ea - base)
-        self.repaint()
-
-
-    def get_zoom(self):
-        return self.pixelSize
-
-
-    def get_width(self):
-        return self.maxPixelsPerLine
-
-
-    def get_count(self):
-        return self.numbytes
-        
-
-    def get_address(self):
-        return self.base + self.offs
-    
-
-    def get_cursor_address(self):
-        return self.get_address() + self.mouseOffs
-
-
     def _plot_buffer(self, qp):
         size = self.size()
         self.maxPixelsTotal = self.maxPixelsPerLine * (size.height() / self.pixelSize)
         self.buf = self.bh.get_buf(self.base + self.offs, self.maxPixelsTotal)
         
-
         colors = []
 
         y = -1
@@ -357,6 +204,141 @@ class PixelWidget(QWidget):
             qp.setPen(pen)
             qp.drawPoint(_x + self.pixelSize / 2, _y + self.pixelSize / 2)
 
+    def keyPressEvent(self, event):
+        self.key = event.key()
+        if self.key == Qt.Key_G:
+            addr = AskAddr(self.base + self.offs, "Jump to address")
+            if addr is not None:
+                jumpto(addr)
+        elif self.key == Qt.Key_F12:
+            print "TODO: implement pic export"
+
+    def keyReleaseEvent(self, event):
+        self.key = None
+        
+    def mousePressEvent(self, event):
+        self.y = event.pos().y()
+        if event.button() == Qt.RightButton:
+            self.fm.on_right_click(self.get_cursor_address())
+
+    def mouseReleaseEvent(self, event):
+        if self.get_sync_state():
+            jumpto(self.base + self.offs)
+            self.activateWindow()
+            self.setFocus()
+            self.statechanged.emit()
+
+    def mouseDoubleClickEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            addr = self.base + self.offs + self._get_offs_by_pos(event.pos())
+            jumpto(addr)
+
+    def wheelEvent(self, event):
+        # zoom
+        if self.key == Qt.Key_Control:
+            self.set_zoom_delta(event.angleDelta().y()/120)
+
+        # width            
+        elif self.key == Qt.Key_Alt:
+            self.set_width_delta(event.angleDelta().y()/120)
+
+        # offset (fine)
+        elif self.key == Qt.Key_Shift:
+            self.set_offset_delta(event.angleDelta().y()/120)
+
+            if self.get_sync_state():
+                jumpto(self.base + self.offs)
+                self.activateWindow()
+                self.setFocus()
+
+        # offset (coarse)
+        else:
+            self.set_offset_delta(event.angleDelta().y()/120 * self.maxPixelsPerLine)
+            
+            if self.get_sync_state():
+                jumpto(self.base + self.offs)
+                self.activateWindow()
+                self.setFocus()
+
+        self.statechanged.emit()
+        self.repaint()
+        
+    def mouseMoveEvent(self, event):
+        y = event.pos().y()
+        
+        if event.buttons() == Qt.NoButton:
+            self.mouseOffs = self._get_offs_by_pos(event.pos())
+            self.setToolTip(self.fm.get_tooltip(self.get_cursor_address()))
+
+        # zoom
+        elif self.key == Qt.Key_Control:
+            self.set_zoom_delta(-1 if y > self.y else 1)
+
+        # width
+        elif self.key == Qt.Key_Alt:
+            self.set_width_delta(-1 if y > self.y else 1)
+
+        # scrolling (offset)
+        elif y != self.y:
+            # offset (fine)
+            delta = y - self.y
+
+            # offset (coarse)
+            if self.key != Qt.Key_Shift:
+                delta *= self.get_width()
+                
+            self.set_offset_delta(delta)
+
+        self.y = y            
+        self.statechanged.emit()
+        self.repaint()
+
+    def set_sync_state(self, sync):
+        self.sync = sync
+
+    def get_sync_state(self):
+        return self.sync
+    
+    def set_cursor_state(self, sync):
+        self.showcursor = sync
+
+    def get_cursor_state(self):
+        return self.showcursor
+
+    def set_filter(self, filter, idx):
+        self.fm = filter
+        self.fm.on_activate(idx)
+        self.repaint()
+
+    def set_addr(self, ea):
+        base = self.bh.get_base(ea)
+        self._set_base(base)
+        self._set_offs(ea - base)
+        self.repaint()
+
+    def get_zoom(self):
+        return self.pixelSize
+
+    def get_width(self):
+        return self.maxPixelsPerLine
+
+    def get_count(self):
+        return self.numbytes
+        
+    def get_address(self):
+        return self.base + self.offs
+
+    def get_cursor_address(self):
+        return self.get_address() + self.mouseOffs
+
+    def set_zoom_delta(self, dzoom):
+        self.pixelSize = max(1, self.pixelSize + dzoom)
+
+    def set_width_delta(self, dwidth):
+        self.maxPixelsPerLine = max(1, self.maxPixelsPerLine + dwidth)
+
+    def set_offset_delta(self, doffs):
+        self._set_offs(max(0, self.offs - doffs))
 
     def _get_offs_by_pos(self, pos):
         elemX = min(pos.x() / self.pixelSize, self.maxPixelsPerLine-1)
@@ -364,21 +346,17 @@ class PixelWidget(QWidget):
         offs = elemY * self.maxPixelsPerLine + elemX
         return offs
 
-
     def _set_offs(self, offs):
         self.offs = offs
 
-
     def _set_base(self, ea):
         self.base = ea
-
 
 
 # -----------------------------------------------------------------------
 
 
 class IDACyberForm(PluginForm):
-
     idbh = None
     windows = []
 
@@ -392,7 +370,6 @@ class IDACyberForm(PluginForm):
         self.pw = None
         self.windowidx = 0
                 
-
     def _update_status_text(self):
         self.status.setText("Adress %X | Cursor %X | Zoom %d | Width %d | Bytes %d" % (
             self.pw.get_address(),
@@ -400,7 +377,6 @@ class IDACyberForm(PluginForm):
             self.pw.get_zoom(),
             self.pw.get_width(),
             self.pw.get_count()))
-
 
     def _load_filters(self):
         filterdir = idadir("plugins/cyber")
@@ -413,25 +389,20 @@ class IDACyberForm(PluginForm):
                 filters.append(filter.FILTER_ENTRY())
         return filters
 
-
     def _change_screen_ea(self):
         if self.pw.get_sync_state():
             ea = ScreenEA()
             self.pw.set_addr(ea)
             self._update_status_text()
 
-
     def _select_filter(self, idx):
         self.pw.set_filter(self.filterlist[idx], idx)
-
 
     def _toggle_sync(self, state):
         self.pw.set_sync_state(state == Qt.Checked)
 
-
     def _toggle_cursor(self, state):
         self.pw.set_cursor_state(state == Qt.Checked)
-
 
     def Show(self, caption, options):
 	i = 0
@@ -444,7 +415,6 @@ class IDACyberForm(PluginForm):
                 self.windowidx = i
                 break        
         return ida_kernwin.plgform_show(self.__clink__, self, caption, options)
-
     
     def OnCreate(self, form):
         self.form = form
@@ -496,13 +466,11 @@ class IDACyberForm(PluginForm):
 	self.parent.setLayout(vl)
 	self.hook.new_ea.connect(self._change_screen_ea)
 
-
     def OnClose(self, options):
     	options = PluginForm.FORM_SAVE | PluginForm.FORM_NO_CONTEXT
     	IDACyberForm.windows.remove(self.windowidx)
 
 # -----------------------------------------------------------------------
-
 
 class IDACyberPlugin(plugin_t):
     flags = 0
@@ -516,11 +484,9 @@ class IDACyberPlugin(plugin_t):
         self.uihook.hook()
         return PLUGIN_KEEP
 
-
     def run(self, arg):
         form = IDACyberForm(self.uihook)
         form.Show(None, options = PluginForm.FORM_MENU|PluginForm.FORM_RESTORE|PluginForm.FORM_PERSIST)
-
 
     def term(self):
         try:
@@ -530,7 +496,6 @@ class IDACyberPlugin(plugin_t):
             pass
 
 # -----------------------------------------------------------------------
-
 
 def PLUGIN_ENTRY():
     return IDACyberPlugin()
