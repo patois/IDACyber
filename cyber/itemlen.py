@@ -11,7 +11,7 @@ class ItemLength(ColorFilter):
         start = addr
         end = start + len(buf)
         ea = start
-        col1 = QColor(0xFF, 0x00, 0x00)
+        col1 = QColor(0xDC, 0xDC, 0xDC)
         col2 = QColor(0x00, 0x00, 0x00)
         cols = [col1, col2]
 
