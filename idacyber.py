@@ -234,17 +234,19 @@ class PixelWidget(QWidget):
             jumpto(addr)
 
     def wheelEvent(self, event):
+        delta = event.angleDelta().y()/120
+
         # zoom
         if self.key == Qt.Key_Control:
-            self.set_zoom_delta(event.angleDelta().y()/120)
+            self.set_zoom_delta(delta)
 
         # width            
         elif self.key == Qt.Key_Alt:
-            self.set_width_delta(event.angleDelta().y()/120)
+            self.set_width_delta(delta)
 
         # offset (fine)
         elif self.key == Qt.Key_Shift:
-            self.set_offset_delta(event.angleDelta().y()/120)
+            self.set_offset_delta(delta)
 
             if self.get_sync_state():
                 jumpto(self.base + self.offs)
@@ -253,7 +255,7 @@ class PixelWidget(QWidget):
 
         # offset (coarse)
         else:
-            self.set_offset_delta(event.angleDelta().y()/120 * self.maxPixelsPerLine)
+            self.set_offset_delta(delta * self.maxPixelsPerLine)
             
             if self.get_sync_state():
                 jumpto(self.base + self.offs)
@@ -358,12 +360,17 @@ class PixelWidget(QWidget):
 
 class IDACyberForm(PluginForm):
     idbh = None
+    hook = None
     windows = []
 
-    def __init__(self, hook):
+    def __init__(self):
         if IDACyberForm.idbh is None:
             IDACyberForm.idbh = IDBBufHandler(True)
-        self.hook = hook
+
+        if IDACyberForm.hook is None:
+            IDACyberForm.hook = ScreenEAHook()
+            IDACyberForm.hook.hook()
+
         self.__clink__ = ida_kernwin.plgform_new()
         self.title = None
         self.filterlist = self._load_filters()
@@ -464,11 +471,15 @@ class IDACyberForm(PluginForm):
 	vl.addLayout(hl4)
 	
 	self.parent.setLayout(vl)
-	self.hook.new_ea.connect(self._change_screen_ea)
+	if IDACyberForm.hook is not None:
+            IDACyberForm.hook.new_ea.connect(self._change_screen_ea)
 
     def OnClose(self, options):
     	options = PluginForm.FORM_SAVE | PluginForm.FORM_NO_CONTEXT
     	IDACyberForm.windows.remove(self.windowidx)
+    	if not len(IDACyberForm.windows):
+            IDACyberForm.hook.unhook()
+            IDACyberForm.hook = None
 
 # -----------------------------------------------------------------------
 
@@ -480,20 +491,14 @@ class IDACyberPlugin(plugin_t):
     wanted_hotkey = "Ctrl-P"
 
     def init(self):
-        self.uihook = ScreenEAHook()
-        self.uihook.hook()
         return PLUGIN_KEEP
 
     def run(self, arg):
-        form = IDACyberForm(self.uihook)
+        form = IDACyberForm()
         form.Show(None, options = PluginForm.FORM_MENU|PluginForm.FORM_RESTORE|PluginForm.FORM_PERSIST)
 
     def term(self):
-        try:
-            self.uihook.unhook()
-            del self.uihook
-        except:
-            pass
+        pass
 
 # -----------------------------------------------------------------------
 
