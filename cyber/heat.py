@@ -8,8 +8,8 @@ class Heat(ColorFilter):
     def on_activate(self, idx):
         print "Hello from the heat filter example"
 
-    def on_right_click(self, addr):
-        print "right click at %X" % addr
+    def on_mb_click(self, addr, button):
+        print "click at %X" % addr
 
     def do_filter(self, buf, addr):
         colors = []
