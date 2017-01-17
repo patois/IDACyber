@@ -13,7 +13,7 @@ class ColorFilter():
     def on_activate(self, idx):
         pass
 
-    def on_right_click(self, addr):
+    def on_mb_click(self, addr, button):
         pass
     
     def do_filter(self, buf, addr):
@@ -58,7 +58,6 @@ class IDBSegment():
         self.threshold = threshold
         self._init_seg(seg)
         
-
     def _init_seg(self, seg):
         size = chunksize(seg.startEA)
         chunk_start = chunkstart(seg.startEA)
@@ -73,7 +72,6 @@ class IDBSegment():
         if self.size and self.size <= self.threshold:
             self.buf = get_many_bytes(self.base, self.size)
             self.dolazyload = False
-
 
     def __getitem__(self, idx):
         start = 0
@@ -218,8 +216,7 @@ class PixelWidget(QWidget):
         
     def mousePressEvent(self, event):
         self.y = event.pos().y()
-        if event.button() == Qt.RightButton:
-            self.fm.on_right_click(self.get_cursor_address())
+        self.fm.on_mb_click(self.get_cursor_address(), event.button())
 
     def mouseReleaseEvent(self, event):
         if self.get_sync_state():
@@ -241,7 +238,7 @@ class PixelWidget(QWidget):
             self.set_zoom_delta(delta)
 
         # width            
-        elif self.key == Qt.Key_Alt:
+        elif self.key == Qt.Key_X:
             self.set_width_delta(delta)
 
         # offset (fine)
@@ -277,7 +274,7 @@ class PixelWidget(QWidget):
             self.set_zoom_delta(-1 if y > self.y else 1)
 
         # width
-        elif self.key == Qt.Key_Alt:
+        elif self.key == Qt.Key_X:
             self.set_width_delta(-1 if y > self.y else 1)
 
         # scrolling (offset)
