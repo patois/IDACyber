@@ -36,7 +36,7 @@ Custom filters can be added by copying them to the "cyber" subfolder. A filter s
 
 3. Mouse Modifiers
 
-  * **Alt**: Horizontal scrolling
+  * **X**: Horizontal scrolling
 
   * **Shift**: Fine grained scrolling
 
