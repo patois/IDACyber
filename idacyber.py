@@ -24,20 +24,16 @@ class ColorFilter():
 
 # -----------------------------------------------------------------------
 
-
-class ScreenEAHook(UI_Hooks):
+class ScreenEAHook(View_Hooks):
     def __init__(self):
-        UI_Hooks.__init__(self)
+        View_Hooks.__init__(self)
         self.prevEA = BADADDR
         self.sh = SignalHandler()
         self.new_ea = self.sh.ida_newea
     
-    def updated_actions(self):
-        ea = ScreenEA()
-        if ea != self.prevEA:
-            self.prevEA = ea
+    def view_loc_changed(self, widget, curloc, prevloc):
+        if curloc is not prevloc:
             self.new_ea.emit()
-
 # -----------------------------------------------------------------------
 
 
