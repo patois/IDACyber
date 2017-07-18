@@ -7,7 +7,7 @@ IDACyber is a plugin for the Interactive Disassembler which visualizes the curre
 
 ### Requirements
 
-* IDA Pro 6.95 at a minimum
+* IDA Pro 7.x at a minimum
 
 ### Installation
 
