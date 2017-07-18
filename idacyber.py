@@ -27,15 +27,14 @@ class ColorFilter():
 class ScreenEAHook(View_Hooks):
     def __init__(self):
         View_Hooks.__init__(self)
-        self.prevEA = BADADDR
         self.sh = SignalHandler()
         self.new_ea = self.sh.ida_newea
     
     def view_loc_changed(self, widget, curloc, prevloc):
         if curloc is not prevloc:
             self.new_ea.emit()
-# -----------------------------------------------------------------------
 
+# -----------------------------------------------------------------------
 
 class SignalHandler(QObject):    
     pw_statechanged = pyqtSignal()
@@ -43,90 +42,24 @@ class SignalHandler(QObject):
 
 # -----------------------------------------------------------------------
 
-
-class IDBSegment():
-    # TODO: lazyload based on total mem, instead of based on seg size
-    def __init__(self, seg, threshold=1024*1024*4):
-        self.base = 0
-        self.size = 0
-        self.buf = None
-        self.dolazyload = True
-        self.threshold = threshold
-        self._init_seg(seg)
-        
-    def _init_seg(self, seg):
-        size = chunksize(seg.startEA)
-        chunk_start = chunkstart(seg.startEA)
-        if seg.startEA > chunk_start:
-            diff = seg.startEA - chunk_start
-            size -= diff
-        size = min(size, seg.endEA - seg.startEA)
-
-        self.base = seg.startEA
-        self.size = size
-
-        if self.size and self.size <= self.threshold:
-            self.buf = get_many_bytes(self.base, self.size)
-            self.dolazyload = False
-
-    def __getitem__(self, idx):
-        start = 0
-        stop = self.size
-        buf = None
-
-        if isinstance(idx, slice):
-            start = idx.start
-            stop = idx.stop
-            if start is None:
-                start = 0
-            if stop is None:
-                stop = self.size
-                
-        if self.dolazyload:
-            # todo: fix
-            buf = get_many_bytes(self.base, stop)
-            if buf:
-                buf = buf[start:stop]
-        else:
-            try:
-                buf = self.buf[start:stop]
-            except:
-                self.dolazyload = False
-        return buf if buf is not None else ""
-        
-    def __contains__(self, ea):
-        return ((self.buf and not self.dolazyload) or \
-               (not self.buf and self.dolazyload)) and \
-               ea >= self.base and ea < self.base + self.size
-
 class IDBBufHandler():
+    # TODO
     def __init__(self, loaderSegmentsOnly=False):
-        self.segments = []
-        self._init()
-
-    def _init(self):
-        for i in xrange(get_segm_qty()):
-            seg = getnseg(i)
-            if seg is not None:
-                self.segments.append(IDBSegment(seg))
+        pass
 
     def get_buf(self, ea, count=0):
-        buf = ""
-        for seg in self.segments:
-            if ea in seg:
-                offs = ea - seg.base
-                size = seg.size
-                if count > 0 and count < size:
-                    size = count
-                buf = seg[offs:offs+size]
-                break
+        # TODO: use/hook invalidate_dbgmem_contents() ?
+        # TODO: implement some kind of caching mechanism?
+        buf = get_bytes(ea, count)
         return buf
 
     def get_base(self, ea):
         base = BADADDR
-        for seg in self.segments:
-            if ea in seg:
-                base = seg.base
+        qty = get_segm_qty()
+        for i in xrange(qty):
+            seg = getnseg(i)
+            if seg and seg.contains(ea):
+                base = seg.startEA
                 break
         return base
         
@@ -397,6 +330,7 @@ class IDACyberForm(PluginForm):
 
     def _select_filter(self, idx):
         self.pw.set_filter(self.filterlist[idx], idx)
+        self.pw.repaint()
 
     def _toggle_sync(self, state):
         self.pw.set_sync_state(state == Qt.Checked)
@@ -418,32 +352,32 @@ class IDACyberForm(PluginForm):
     
     def OnCreate(self, form):
         self.form = form
-	self.parent = self.FormToPyQtWidget(form)
+        self.parent = self.FormToPyQtWidget(form)
 
-	vl = QtWidgets.QVBoxLayout()
+        vl = QtWidgets.QVBoxLayout()
         hl = QtWidgets.QHBoxLayout()
         hl2 = QtWidgets.QHBoxLayout()
         hl3 = QtWidgets.QHBoxLayout()
         hl4 = QtWidgets.QHBoxLayout()
         
-	self.pw = PixelWidget(self.parent, IDACyberForm.idbh)
-	self.pw.setFocusPolicy(Qt.StrongFocus | Qt.WheelFocus)
-	self.pw.statechanged.connect(self._update_status_text)
-	self.pw.set_filter(self.filterlist[0], 0)
-	self.pw.set_addr(ScreenEA())
+        self.pw = PixelWidget(self.parent, IDACyberForm.idbh)
+        self.pw.setFocusPolicy(Qt.StrongFocus | Qt.WheelFocus)
+        self.pw.statechanged.connect(self._update_status_text)
+        self.pw.set_filter(self.filterlist[0], 0)
+        self.pw.set_addr(ScreenEA())
 
-	vl.addWidget(self.pw)
+        vl.addWidget(self.pw)
 
-	flt = QLabel()  
-	flt.setText("Filter:")
-	hl.addWidget(flt)
+        flt = QLabel()  
+        flt.setText("Filter:")
+        hl.addWidget(flt)
 
         self.filterChoser = QComboBox()
         self.filterChoser.addItems([filter.name for filter in self.filterlist])
         self.filterChoser.currentIndexChanged.connect(self._select_filter)
         hl.addWidget(self.filterChoser)
         hl.addStretch(1)
-	
+
         self.cb = QCheckBox("Sync")
         self.cb.setChecked(True)
         self.cb.stateChanged.connect(self._toggle_sync)
@@ -454,23 +388,23 @@ class IDACyberForm(PluginForm):
         self.cb2.stateChanged.connect(self._toggle_cursor)
         hl3.addWidget(self.cb2)
 
-	self.status = QLabel()
-	self.status.setText("Cyber, cyber!")
-	hl4.addWidget(self.status)
+        self.status = QLabel()
+        self.status.setText("Cyber, cyber!")
+        hl4.addWidget(self.status)
 
         vl.addLayout(hl)
-	vl.addLayout(hl2)
-	vl.addLayout(hl3)
-	vl.addLayout(hl4)
-	
-	self.parent.setLayout(vl)
-	if IDACyberForm.hook is not None:
-            IDACyberForm.hook.new_ea.connect(self._change_screen_ea)
+        vl.addLayout(hl2)
+        vl.addLayout(hl3)
+        vl.addLayout(hl4)
+
+        self.parent.setLayout(vl)
+        if IDACyberForm.hook is not None:
+                IDACyberForm.hook.new_ea.connect(self._change_screen_ea)
 
     def OnClose(self, options):
-    	options = PluginForm.FORM_SAVE | PluginForm.FORM_NO_CONTEXT
-    	IDACyberForm.windows.remove(self.windowidx)
-    	if not len(IDACyberForm.windows):
+        options = PluginForm.FORM_SAVE | PluginForm.FORM_NO_CONTEXT
+        IDACyberForm.windows.remove(self.windowidx)
+        if not len(IDACyberForm.windows):
             IDACyberForm.hook.unhook()
             IDACyberForm.hook = None
 
