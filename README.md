@@ -1,7 +1,7 @@
 # IDACyber
 ## Data Visualization Plugin for IDA Pro
 
-![Alt text](/screenshots/screen02.png?raw=true "IDACyber")
+![Alt text](/screenshots/idacyber.png?raw=true "IDACyber")
 
 IDACyber is a plugin for the Interactive Disassembler which is capable of visualizing the currently loaded IDB's data. This can be useful for identifying structures and patterns of binary blobs where extended information such as a header is not available (firmware dumps/images etc.).
 
