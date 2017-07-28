@@ -1,20 +1,22 @@
-from PyQt5.QtGui import QColor
+from PyQt5.QtGui import qRgb
 from idacyber import ColorFilter
 from ida_bytes import get_byte
 
 class Heatmap(ColorFilter):
     name = "Heatmap"
+    highlight_cursor = True
+    help = None
 
-    def do_filter(self, buf, addr):
+    def render_img(self, buf, addr, mouse_offs):
         colors = []
         for c in buf:
             c = ord(c) & 0xFF
             r, g, b = self.hm(c)
-            colors.append(QColor(r, g, b))
+            colors.append(qRgb(r, g, b))
         return colors
 
-    def get_tooltip(self, addr):
-        return "0x%02X" % get_byte(addr)
+    def get_tooltip(self, addr, mouse_offs):
+        return "0x%02X" % get_byte(addr + mouse_offs)
 
     # code taken from
     # http://stackoverflow.com/questions/20792445/calculate-rgb-value-for-a-range-of-values-to-create-heat-map
