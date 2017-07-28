@@ -1,10 +1,12 @@
-from PyQt5.QtGui import QColor
+from PyQt5.QtGui import qRgb
 from idacyber import ColorFilter
 from ida_kernwin import asklong
 from collections import Counter
 
 class AutoXor(ColorFilter):
     name = "AutoXOR"
+    highlight_cursor = True
+    help = None
 
     def __init__(self):
         self.key = 0x80
@@ -23,16 +25,16 @@ class AutoXor(ColorFilter):
                     print "Key %02Xh - %d/%d (%.2f%%)" % (cur, self.occurence, self.size, float(self.occurence)/float(self.size)*100.0)
                     self.key = cur
 
-    def do_filter(self, buf, addr):
+    def render_img(self, buf, addr, mouse_offs):
         colors = []
         self._update_key(buf)
         for c in buf:
             c = (ord(c) ^ self.key) & 0xFF
-            colors.append(QColor(c, 0, c))
+            colors.append(qRgb(c, 0, c))
         return colors
 
 
-    def get_tooltip(self, addr):
+    def get_tooltip(self, addr, mouse_offs):
         result = None
         if self.size:
             result = "Key %02Xh - %d/%d (%.2f%%)" % (self.key, self.occurence, self.size, float(self.occurence)/float(self.size)*100.0)
