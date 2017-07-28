@@ -26,7 +26,7 @@ For examples, please refer to the color filters located in the "cyber" subfolder
 
 1. Checkboxes
 
-  * **Highlight cursor**: Displays the current mouse cursor on top of plotted data
+  * **Sync**: Synchronizes plotted data to IDA cursor and vice versa
 
 2. Mouse controls
 
@@ -47,4 +47,4 @@ For examples, please refer to the color filters located in the "cyber" subfolder
   * **F2** - Display information about current filter
   * **F12** - Export as bitmap 
 
-![Alt text](/screenshots/idacyber.gif?raw=true "Visual pattern recognition")
+![IDACyber animated](/screenshots/idacyber.gif?raw=true "Visual pattern recognition")
