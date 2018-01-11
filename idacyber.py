@@ -213,8 +213,8 @@ class PixelWidget(QWidget):
                 y = y + 1
 
         if cursor and self.fm.highlight_cursor:
-            p = QPoint(self.get_elem_x(), self.get_elem_x())
-            img.setPixel(self.get_elem_x(), self.get_elem_y(), ~(img.pixelColor(p)).rgb())
+            p = QPoint(self.get_elem_x(), self.get_elem_y())
+            img.setPixel(p, ~(img.pixelColor(p)).rgb())
 
         return img
 
@@ -440,7 +440,7 @@ class IDACyberForm(PluginForm):
         sys.path.append(filterdir)
         filters = []
         for entry in os.listdir(filterdir):
-            if '.py' in entry.lower() and entry.lower() != '__init__.py':
+            if entry.lower().endswith('.py') and entry.lower() != '__init__.py':
                 mod = os.path.splitext(entry)[0]
                 filter = __import__(mod, globals(), locals(), [], 0)
                 filters.append(filter.FILTER_ENTRY())
