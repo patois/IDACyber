@@ -1,17 +1,30 @@
 from PyQt5.QtGui import qRgb
+from PyQt5.QtCore import Qt
 from idacyber import ColorFilter
+from ida_kernwin import ask_long
 
 class Ascii(ColorFilter):
     name = 'Ascii'
     highlight_cursor = True
-    help = ''
+    help = 'Highlight ascii strings.\n\nSet threshold using right mouse button.'
+
+    def __init__(self):
+        self.threshold = 4
+
+    def _set_threshold(self):
+        res = ask_long(self.threshold, "Please specify minimum string length")
+        if res is not None:
+            self.threshold = res
+
+    def on_mb_click(self, button, addr, mouse_offs):
+        if button == Qt.RightButton:
+            self._set_threshold()
 
     def render_img(self, buf, addr, mouse_offs):
         colors = []
         last_offs = None
         cur_len = 0
         offsets = {}
-        min_len = 5
         for i in xrange(len(buf)):           
             c = ord(buf[i])
             r = 0
@@ -23,10 +36,11 @@ class Ascii(ColorFilter):
                     last_offs = i
                     cur_len = 1
             else:
-                if last_offs is not None and cur_len >= min_len:
+                if last_offs is not None and cur_len >= self.threshold:
                     offsets[last_offs] = cur_len
                 last_offs = None
                 cur_len = 0
+            # bg color
             colors.append(qRgb(0x10, 0x10, 0x10))
 
         for k, v in offsets.iteritems():
