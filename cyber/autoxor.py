@@ -1,3 +1,4 @@
+from __future__ import print_function
 from PyQt5.QtGui import qRgb
 from idacyber import ColorFilter
 from ida_kernwin import asklong
@@ -22,7 +23,7 @@ class AutoXor(ColorFilter):
                 cur, self.occurence = mc[0]
                 cur = ord(cur)
                 if cur != self.key:
-                    print "Key %02Xh - %d/%d (%.2f%%)" % (cur, self.occurence, self.size, float(self.occurence)/float(self.size)*100.0)
+                    print("Key %02Xh - %d/%d (%.2f%%)" % (cur, self.occurence, self.size, float(self.occurence)/float(self.size)*100.0))
                     self.key = cur
 
     def render_img(self, buf, addr, mouse_offs):

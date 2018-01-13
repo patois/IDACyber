@@ -1,3 +1,4 @@
+from __future__ import print_function
 from PyQt5.QtGui import qRgb
 from PyQt5.QtCore import Qt
 from idacyber import ColorFilter
@@ -6,6 +7,12 @@ import ida_idaapi
 from ida_kernwin import asklong
 from ida_funcs import get_func, get_func_name
 from ida_name import get_name
+
+try:
+    xrange          # Python 2
+except NameError:
+    xrange = range  # Python 3
+
 
 class Crawl(ColorFilter):
     name = "Crawl"
@@ -22,7 +29,7 @@ class Crawl(ColorFilter):
             pass
         elif button == Qt.RightButton:
             self.switch ^= 1
-            print "Highlighting %s" % self.mode[self.switch]
+            print("Highlighting %s" % self.mode[self.switch])
 
     def get_tooltip(self, addr, mouse_offs):
         tooltip = '%X: ' % (addr + mouse_offs)
@@ -52,7 +59,7 @@ class Crawl(ColorFilter):
 
         for pos in xrange(len(buf)):
             c = ord(buf[pos]) & 0xFF
-            
+
             highlight = False
             if mouse_offs is not None:
                 if addr + pos >= head and addr + pos < tail:

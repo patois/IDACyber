@@ -2,6 +2,12 @@ from PyQt5.QtGui import qRgb
 from idacyber import ColorFilter
 from ida_xref import xrefblk_t
 
+try:
+    xrange          # Python 2
+except NameError:
+    xrange = range  # Python 3
+
+
 class xrefsto(ColorFilter):
     name = "xrefs to"
     highlight_cursor = True
@@ -15,7 +21,7 @@ class xrefsto(ColorFilter):
             while xrefs.next_to():
                 count += 1
         return count
-        
+
 
     def render_img(self, buf, addr, mouse_offs):
         colors = []
@@ -25,7 +31,7 @@ class xrefsto(ColorFilter):
 
         if xrefs:
             minimum, maximum = min(xrefs), max(xrefs)
-            
+
         for count in xrefs:
             r, g, b = self.hm(minimum, maximum, count)
             colors.append(qRgb(r, g, b))
@@ -43,6 +49,6 @@ class xrefsto(ColorFilter):
 
     def get_tooltip(self, addr, mouse_offs):
         return "%d xrefs" % self.xrefcount(addr + mouse_offs)
-    
+
 def FILTER_ENTRY():
     return xrefsto()

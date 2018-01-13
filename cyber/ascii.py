@@ -3,6 +3,12 @@ from PyQt5.QtCore import Qt
 from idacyber import ColorFilter
 from ida_kernwin import ask_long
 
+try:
+    xrange          # Python 2
+except NameError:
+    xrange = range  # Python 3
+
+
 class Ascii(ColorFilter):
     name = 'Ascii'
     highlight_cursor = True
@@ -25,7 +31,7 @@ class Ascii(ColorFilter):
         last_offs = None
         cur_len = 0
         offsets = {}
-        for i in xrange(len(buf)):           
+        for i in xrange(len(buf)):
             c = ord(buf[i])
             r = 0
             printable = c >= 0x20 and c <= 0x7E
@@ -55,6 +61,6 @@ class Ascii(ColorFilter):
                         colors[k+i] = qRgb(b, 0, 0)
 
         return colors
-    
+
 def FILTER_ENTRY():
     return Ascii()
