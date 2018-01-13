@@ -3,6 +3,12 @@ from idacyber import ColorFilter
 from ida_bytes import get_item_size, get_item_head
 from copy import copy
 
+try:
+    xrange          # Python 2
+except NameError:
+    xrange = range  # Python 3
+
+
 class ItemLength(ColorFilter):
     name = "Item length"
     highlight_cursor = True

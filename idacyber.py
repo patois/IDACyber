@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os
 from PyQt5.QtWidgets import QWidget, QApplication, QCheckBox, QLabel, QComboBox, QSizePolicy
 from PyQt5.QtGui import QPainter, QColor, QFont, QPen, QPixmap, QImage, qRgb
@@ -237,9 +238,9 @@ class PixelWidget(QWidget):
                 fname = 'IDACyber_%04d.bmp' % i
                 if not path.isfile(fname):
                     if img.save(fname):
-                        print 'File exported to %s' % fname
+                        print('File exported to %s' % fname)
                     else:
-                        print 'Error'
+                        print('Error')
                     done = True
                 i += 1
 
@@ -461,7 +462,7 @@ class IDACyberForm(PluginForm):
         self.pw.set_sync_state(state == Qt.Checked)
 
     def Show(self, caption, options):
-	i = 0
+        i = 0
         while True:
             i += 1
             if i not in IDACyberForm.windows:
@@ -536,7 +537,7 @@ class IDACyberPlugin(plugin_t):
 
     def init(self):
         global banner
-        print banner
+        print(banner)
         return PLUGIN_KEEP
 
     def run(self, arg):

@@ -1,3 +1,4 @@
+from __future__ import print_function
 from PyQt5.QtGui import qRgb
 from PyQt5.QtCore import Qt
 from idacyber import ColorFilter
@@ -19,7 +20,7 @@ class Xor(ColorFilter):
             self.key = key & 0xFF
 
     def on_activate(self, idx):
-        print "%s filter:\n  * pick key from graph with right mouse button\n  * assign key with middle mouse button." % Xor.name
+        print("%s filter:\n  * pick key from graph with right mouse button\n  * assign key with middle mouse button." % Xor.name)
 
     def on_mb_click(self, button, addr, mouse_offs):
         if button == Qt.MiddleButton:
