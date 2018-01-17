@@ -6,8 +6,7 @@ from ida_bytes import get_flags, is_strlit, get_item_head
 
 class Mountain(ColorFilter):
     name = "Mountain"
-    highlight_cursor = True
-    help = 'Emphasizes functions and strings'
+    help = 'Highlight functions and strings.'
 
     def on_activate(self, idx):
         print Mountain.help

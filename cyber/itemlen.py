@@ -5,8 +5,6 @@ from copy import copy
 
 class ItemLength(ColorFilter):
     name = "Item length"
-    highlight_cursor = True
-    help = None
 
     def render_img(self, buf, addr, mouse_offs):
         colors = []

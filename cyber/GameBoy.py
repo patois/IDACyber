@@ -4,8 +4,7 @@ from ida_bytes import get_item_size
 
 class GameBoy(ColorFilter):
     name = "GameBoy"
-    highlight_cursor = True
-    help =  None
+    help =  "Grayscale"
 
     def render_img(self, buf, addr, mouse_offs):
         #Bit    7  6  5  4  3  2  1  0

@@ -4,8 +4,8 @@ from ida_xref import xrefblk_t
 
 class xrefsto(ColorFilter):
     name = "xrefs to"
-    highlight_cursor = True
-    help = None
+    highlight_cursor = False
+    help = "Experimental code which highlights xrefs."
 
     def xrefcount(self, addr):
         count = 0

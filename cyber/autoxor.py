@@ -5,8 +5,6 @@ from collections import Counter
 
 class AutoXor(ColorFilter):
     name = "AutoXOR"
-    highlight_cursor = True
-    help = None
 
     def __init__(self):
         self.key = 0x80

@@ -4,8 +4,7 @@ from ida_bytes import get_byte
 
 class Heatmap(ColorFilter):
     name = "Heatmap"
-    highlight_cursor = True
-    help = None
+    help = "Heatmap"
 
     def render_img(self, buf, addr, mouse_offs):
         colors = []

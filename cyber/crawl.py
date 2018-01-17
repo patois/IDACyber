@@ -9,7 +9,7 @@ from ida_name import get_name
 
 class Crawl(ColorFilter):
     name = "Crawl"
-    highlight_cursor = True
+    highlight_cursor = False
     help = 'Highlight functions and items - RMB toggles mode'
 
     def __init__(self):

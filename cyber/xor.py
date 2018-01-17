@@ -6,20 +6,19 @@ from ida_bytes import get_byte
 
 class Xor(ColorFilter):
     name = "XOR"
-    highlight_cursor = True
-    help = None
+    help = "Apply 8-bit XOR operation.\n\nMMB: Set XOR key.\nRMB: Pick XOR key."
 
     def __init__(self):
         self.key = 23
 
     def _set_xor_key(self, key=None):
         if key is None:
-            key = asklong(self.key, "Please enter 8-Bit XOR key")
+            key = asklong(self.key, "Specify 8-Bit XOR key")
         if key:
             self.key = key & 0xFF
 
     def on_activate(self, idx):
-        print "%s filter:\n  * pick key from graph with right mouse button\n  * assign key with middle mouse button." % Xor.name
+        print "%s filter:\n  * RMB: pick XOR key from rendered image.\n  * MMB: assign XOR key." % Xor.name
 
     def on_mb_click(self, button, addr, mouse_offs):
         if button == Qt.MiddleButton:

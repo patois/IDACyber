@@ -3,8 +3,7 @@ from idacyber import ColorFilter
 
 class NES(ColorFilter):
     name = "NES"
-    highlight_cursor = True
-    help = None
+    help = "8-Bit colors"
 
     def render_img(self, buf, addr, mouse_offs):
         #Bit    7  6  5  4  3  2  1  0

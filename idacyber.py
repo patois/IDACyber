@@ -228,7 +228,7 @@ class PixelWidget(QWidget):
             hlp = self.fm.help
             if hlp is None:
                 hlp = "Help unavailable"
-            info(hlp)
+            info(hlp+"\n\n")
         elif self.key == Qt.Key_F12:
             img = self.render_image(cursor = False)
             done = False
@@ -461,7 +461,7 @@ class IDACyberForm(PluginForm):
         self.pw.set_sync_state(state == Qt.Checked)
 
     def Show(self, caption, options):
-	i = 0
+        i = 0
         while True:
             i += 1
             if i not in IDACyberForm.windows:

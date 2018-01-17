@@ -5,11 +5,10 @@ from ida_kernwin import askstr, warning
 
 class xpression(ColorFilter):
     name = "expression"
-    highlight_cursor = True
-    help = None
+    help = "Specify expression for RGB color values."
 
     def __init__(self):
-        self.xpr = "c, c, c"
+        self.xpr = "r, g, b"
 
     def _set_user_expr(self):
         while True:
@@ -18,7 +17,7 @@ class xpression(ColorFilter):
                 break
             
             try:
-                c = 0
+                r = g = b = 0
                 r, g, b = eval(xpr)
                 self.xpr = xpr
                 break
@@ -35,7 +34,7 @@ class xpression(ColorFilter):
     def render_img(self, buf, addr, mouse_offs):
         colors = []
         for c in buf:
-            c = ord(c) & 0xFF
+            r = g = b = ord(c) & 0xFF
             r, g, b = eval(self.xpr)
             colors.append(qRgb(r&0xFF, g&0xFF, b&0xFF))
         return colors
