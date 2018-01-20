@@ -3,7 +3,7 @@ from PyQt5.QtCore import Qt
 from idacyber import ColorFilter
 from ida_bytes import get_item_end, get_item_head
 import ida_idaapi
-from ida_kernwin import asklong
+from ida_kernwin import msg
 from ida_funcs import get_func, get_func_name
 from ida_name import get_name
 
@@ -22,7 +22,7 @@ class Crawl(ColorFilter):
             pass
         elif button == Qt.RightButton:
             self.switch ^= 1
-            print "Highlighting %s" % self.mode[self.switch]
+            msg('Highlighting %s\n' % self.mode[self.switch])
 
     def get_tooltip(self, addr, mouse_offs):
         tooltip = '%X: ' % (addr + mouse_offs)

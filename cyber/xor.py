@@ -1,7 +1,7 @@
 from PyQt5.QtGui import qRgb
 from PyQt5.QtCore import Qt
 from idacyber import ColorFilter
-from ida_kernwin import asklong
+from ida_kernwin import msg
 from ida_bytes import get_byte
 
 class Xor(ColorFilter):
@@ -18,7 +18,7 @@ class Xor(ColorFilter):
             self.key = key & 0xFF
 
     def on_activate(self, idx):
-        print "%s filter:\n  * RMB: pick XOR key from rendered image.\n  * MMB: assign XOR key." % Xor.name
+        msg("%s filter:\n  * RMB: pick XOR key from rendered image.\n  * MMB: assign XOR key." % Xor.name)
 
     def on_mb_click(self, button, addr, mouse_offs):
         if button == Qt.MiddleButton:

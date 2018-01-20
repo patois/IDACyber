@@ -3,12 +3,13 @@ from PyQt5.QtWidgets import QWidget, QApplication, QCheckBox, QLabel, QComboBox,
 from PyQt5.QtGui import QPainter, QColor, QFont, QPen, QPixmap, QImage, qRgb
 from PyQt5.QtCore import Qt, QObject, pyqtSignal, QRect, QSize, QPoint
 from idaapi import *
+from ida_kernwin import msg
 from os import path
 import copy
 
 __author__ = 'Dennis Elser'
 
-USE_CACHE = False
+USE_CACHE = False # do not enable
 
 banner = """
 .___ .______  .______  ._______ ____   ____._______ ._______.______  
@@ -40,7 +41,7 @@ class ColorFilter():
     def on_mb_click(self, button, addr, mouse_offs):
         pass
     
-    def render_img(self, buf, addr, mouse_offs):
+    def render_img(self, bytes, addr, mouse_offs):
         return []
 
     def get_tooltip(self, addr, mouse_offs):
@@ -116,25 +117,40 @@ class IDBBufHandler():
         self.cache = Cache()
 
     def get_buf(self, ea, count=0):
-        # TODO: use/hook invalidate_dbgmem_contents() ?
-        # TODO: implement some kind of caching mechanism?
-        buf = ""
+        # TODO: finish/remove caching mechanism?
+        buf = None
 
+        """
         if USE_CACHE: # TODO experimental
             if not self.cache.is_cached(ea):
-                buf = get_bytes(ea, count)
-                self.cache.update(ea, buf)
+                result = get_bytes_and_mask(ea, count)
+                if result:
+                    self.cache.update(ea, result[0])
             else:
-                buf = get_bytes(ea, count)
+                result = get_bytes_and_mask(ea, count)
+                if result:
+                    buf, _ = result
         else:
+        """
+        if True:
             result = get_bytes_and_mask(ea, count)
             if result:
                 buf, mask = result
-
+                j = 0
+                numbytes = 0
                 for i in xrange(len(mask)):
-                    if mask[i] != '\xFF':
+                    b = ord(mask[i])
+                    if b != 0xFF:
+                        for j in xrange(8):
+                            if (b & (1 << j)):
+                                numbytes += 1
+                            else:
+                                break
                         break
-                buf = buf[:i*8].ljust(count, '\x00')
+                    else:
+                        numbytes += 8
+                buf = buf[:numbytes]
+
         return buf
 
     def get_base(self, ea):
@@ -187,11 +203,12 @@ class PixelWidget(QWidget):
         qp.fillRect(self.rect(), Qt.black)
 
         self.img = self.render_image()
-        self.rect_x = (self.rect().width() / 2) - ((self.maxPixelsPerLine * self.pixelSize) / 2)
+        if self.img is not None:
+            self.rect_x = (self.rect().width() / 2) - ((self.maxPixelsPerLine * self.pixelSize) / 2)
 
-        qp.drawImage(QRect(QPoint(self.rect_x, 0), 
-            QPoint(self.rect_x + self.maxPixelsPerLine * self.pixelSize, (self.maxPixelsTotal / self.maxPixelsPerLine) * self.pixelSize)),
-            self.img)
+            qp.drawImage(QRect(QPoint(self.rect_x, 0), 
+                QPoint(self.rect_x + self.maxPixelsPerLine * self.pixelSize, (self.maxPixelsTotal / self.maxPixelsPerLine) * self.pixelSize)),
+                self.img)
 
         qp.end()       
 
@@ -200,17 +217,24 @@ class PixelWidget(QWidget):
         self.maxPixelsTotal = self.maxPixelsPerLine * (size.height() / self.pixelSize)
         self.buf = self.bh.get_buf(self.base + self.offs, self.maxPixelsTotal)       
         self.numbytes = min(self.maxPixelsTotal, len(self.buf))
-
-        #img = QImage(self.maxPixelsPerLine, size.height() / self.pixelSize, QImage.Format_RGB32)
         img = QImage(self.maxPixelsPerLine, size.height() / self.pixelSize, QImage.Format_RGB32)
         addr = self.base + self.offs
         pixels = self.fm.render_img(self.buf[:self.numbytes], addr, self.mouseOffs)
+        pixlen = len(pixels)
+
         x = y = 0
         for pix in pixels:
             img.setPixel(x, y, pix)
             x = (x + 1) % self.maxPixelsPerLine
-            if x == 0:
+            if not x:
                 y = y + 1
+        inv = [qRgb(0,0,0), qRgb(0x2F,0x4F,0x4F)]
+        if pixlen < self.maxPixelsTotal:
+            for i in xrange(self.maxPixelsTotal-pixlen):
+                img.setPixel(x, y, inv[(x&2 != 0) ^ (y&2 != 0)])
+                x = (x + 1) % self.maxPixelsPerLine
+                if not x:
+                    y = y + 1
 
         if cursor and self.fm.highlight_cursor:
             p = QPoint(self.get_elem_x(), self.get_elem_y())
@@ -219,7 +243,27 @@ class PixelWidget(QWidget):
         return img
 
     def keyPressEvent(self, event):
-        self.key = event.key()
+        update = False
+        
+        if self.key is None:
+            self.key = event.key()
+        else:
+            if self.key == Qt.Key_Control:
+                if event.key() == Qt.Key_Plus:
+                    self.set_zoom_delta(1)
+                    update = True
+                elif event.key() == Qt.Key_Minus:
+                    self.set_zoom_delta(-1)
+                    update = True
+            elif self.key == Qt.Key_Shift:
+                if event.key() == Qt.Key_Plus:
+                    self.set_offset_delta(-self.get_width())
+                    update = True
+                elif event.key() == Qt.Key_Minus:
+                    self.set_offset_delta(self.get_width())
+                    update = True
+
+
         if self.key == Qt.Key_G:
             addr = AskAddr(self.base + self.offs, 'Jump to address')
             if addr is not None:
@@ -229,6 +273,7 @@ class PixelWidget(QWidget):
             if hlp is None:
                 hlp = "Help unavailable"
             info(hlp+"\n\n")
+            self.key = None # workaround fixme
         elif self.key == Qt.Key_F12:
             img = self.render_image(cursor = False)
             done = False
@@ -236,15 +281,40 @@ class PixelWidget(QWidget):
             while not done:
                 fname = 'IDACyber_%04d.bmp' % i
                 if not path.isfile(fname):
-                    if img.save(fname):
-                        print 'File exported to %s' % fname
-                    else:
-                        print 'Error'
+                    statusmsg = "File exported to" if img.save(fname) else 'Error exporting screenshot to'
+                    msg(statusmsg + ' %s\n' % fname)
+                    #self.key = None # workaround fixme
                     done = True
                 i += 1
 
+        elif self.key == Qt.Key_PageDown:
+            self.set_offset_delta(-self.get_count())
+            update = True
+
+        elif self.key == Qt.Key_PageUp:
+            self.set_offset_delta(self.get_count())
+            update = True
+
+        elif self.key == Qt.Key_Plus:
+            self.set_offset_delta(-1)
+            update = True
+
+        elif self.key == Qt.Key_Minus:
+            self.set_offset_delta(1)
+            update = True
+
+        if update:
+            if self.get_sync_state():
+                jumpto(self.base + self.offs)
+                self.activateWindow()
+                self.setFocus()
+            self.statechanged.emit()
+            self.repaint()
+
+
     def keyReleaseEvent(self, event):
-        self.key = None
+        if self.key == event.key():
+            self.key = None
         
     def mousePressEvent(self, event):
         self.old_mouse_y = event.pos().y()
@@ -532,11 +602,11 @@ class IDACyberPlugin(plugin_t):
     comment = ''
     help = ''
     wanted_name = 'IDACyber'
-    wanted_hotkey = 'Ctrl-P'
+    wanted_hotkey = 'Ctrl-Shift-C'
 
     def init(self):
         global banner
-        print banner
+        msg("%s" % banner)
         return PLUGIN_KEEP
 
     def run(self, arg):

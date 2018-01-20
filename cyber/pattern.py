@@ -8,7 +8,7 @@ import re
 
 class Pattern(ColorFilter):
     name = 'Pattern'
-    help = 'Highlight regex pattern.\n\nRMB sets regex.'
+    help = 'Highlight regular expression.\n\nRMB sets expression.'
 
     def __init__(self):
         self.pattern = ''

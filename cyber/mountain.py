@@ -1,18 +1,19 @@
 from PyQt5.QtGui import qRgb
 from idacyber import ColorFilter
+from ida_kernwin import msg
 from ida_bytes import get_byte
 from ida_funcs import get_func
 from ida_bytes import get_flags, is_strlit, get_item_head
 
 class Mountain(ColorFilter):
-    name = "Mountain"
+    name = 'Mountain'
     help = 'Highlight functions and strings.'
 
     def on_activate(self, idx):
-        print Mountain.help
+        msg('%s\n' % Mountain.help)
 
     def on_mb_click(self, button, addr, mouse_offs):
-        print 'click at %X' % (addr + mouse_offs)
+        msg('click at %X\n' % (addr + mouse_offs))
 
     def _is_string(self, ea):
         head = get_item_head(ea)
@@ -37,7 +38,7 @@ class Mountain(ColorFilter):
         return colors
 
     def get_tooltip(self, addr, mouse_offs):
-        return "0x%02X" % get_byte(addr + mouse_offs)
+        return '0x%02X' % get_byte(addr + mouse_offs)
     
 def FILTER_ENTRY():
     return Mountain()

@@ -1,7 +1,7 @@
 from PyQt5.QtGui import qRgb
 from PyQt5.QtCore import Qt
 from idacyber import ColorFilter
-from ida_kernwin import askstr, warning
+from ida_kernwin import ask_str, warning
 
 class xpression(ColorFilter):
     name = "expression"
@@ -12,7 +12,7 @@ class xpression(ColorFilter):
 
     def _set_user_expr(self):
         while True:
-            xpr = askstr(0, self.xpr, "Please enter expression")
+            xpr = ask_str(self.xpr, 0, "Please enter expression")
             if xpr is None:
                 break
             

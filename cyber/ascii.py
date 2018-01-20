@@ -24,6 +24,7 @@ class Ascii(ColorFilter):
         last_offs = None
         cur_len = 0
         offsets = {}
+
         for i in xrange(len(buf)):           
             c = ord(buf[i])
             r = 0
