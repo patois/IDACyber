@@ -25,18 +25,21 @@ class xpression(ColorFilter):
                 warning("Invalid expression!")
                 continue
 
-
-
     def on_mb_click(self, button, addr, mouse_offs):
         if button == Qt.RightButton:
             self._set_user_expr()
 
-    def render_img(self, buf, addr, mouse_offs):
+    def render_img(self, buffers, addr, mouse_offs):
         colors = []
-        for c in buf:
-            r = g = b = ord(c) & 0xFF
-            r, g, b = eval(self.xpr)
-            colors.append(qRgb(r&0xFF, g&0xFF, b&0xFF))
+        for mapped, buf in buffers:
+            if mapped:
+                for c in buf:
+                    r = g = b = ord(c) & 0xFF
+                    r, g, b = eval(self.xpr)
+                    colors.append((True, qRgb(r&0xFF, g&0xFF, b&0xFF)))
+            else:
+                for i in xrange(len(buf)):
+                    colors.append((False,0))
         return colors
 
 def FILTER_ENTRY():

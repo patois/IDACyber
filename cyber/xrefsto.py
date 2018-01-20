@@ -17,18 +17,25 @@ class xrefsto(ColorFilter):
         return count
         
 
-    def render_img(self, buf, addr, mouse_offs):
+    def render_img(self, buffers, addr, mouse_offs):
         colors = []
-        xrefs = []
-        for i in xrange(len(buf)):
-            xrefs.append(self.xrefcount(addr + i))
+        goffs = 0
+        for mapped, buf in buffers:
+            xrefs = []
+            if mapped: 
+                for i in xrange(len(buf)):
+                    xrefs.append(self.xrefcount(addr + goffs + i))
 
-        if xrefs:
-            minimum, maximum = min(xrefs), max(xrefs)
-            
-        for count in xrefs:
-            r, g, b = self.hm(minimum, maximum, count)
-            colors.append(qRgb(r, g, b))
+                if xrefs:
+                    minimum, maximum = min(xrefs), max(xrefs)
+                    
+                for count in xrefs:
+                    r, g, b = self.hm(minimum, maximum, count)
+                    colors.append((True, qRgb(r, g, b)))
+            else:
+                for i in xrange(len(buf)):
+                    colors.append((False, 0))
+            goffs += len(buf)
         return colors
 
     def hm(self, minimum, maximum, value):

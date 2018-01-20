@@ -1,7 +1,6 @@
 from PyQt5.QtGui import qRgb
 from PyQt5.QtCore import Qt
 from idacyber import ColorFilter
-from ida_kernwin import ask_long
 from ida_bytes import get_byte
 from ida_kernwin import ask_str, warning
 import re
@@ -34,23 +33,26 @@ class Pattern(ColorFilter):
         if button == Qt.RightButton:
             self._set_pattern()
 
-    def render_img(self, buf, addr, mouse_offs):
+    def render_img(self, buffers, addr, mouse_offs):
         colors = []
-        matches = []
 
-        if self.regex is not None:
-            for m in re.finditer(self.regex, buf):
-                matches += range(m.start(), m.end())
+        for mapped, buf in buffers:
+            offs = 0
+            matches = []
+            if mapped:        
+                if self.regex is not None:
+                    for m in re.finditer(self.regex, buf):
+                        matches += range(m.start(), m.end())
 
-        colors = []
-        offs = 0
-        for c in buf:
-            r = g = b = ord(c) & 0x3F
-            if offs in matches:
-                r, g, b = (r+(0xFF-0x3F)&0xFF, g, b)
-            colors.append(qRgb(r, g, b))
-            offs += 1
-
+                for c in buf:
+                    r = g = b = ord(c) & 0x3F
+                    if offs in matches:
+                        r, g, b = (r+(0xFF-0x3F)&0xFF, g, b)
+                    colors.append((True, qRgb(r, g, b)))
+                    offs += 1
+            else:
+                for i in xrange(len(buf)):
+                    colors.append((False, 0))
         return colors
     
     def get_tooltip(self, addr, mouse_offs):

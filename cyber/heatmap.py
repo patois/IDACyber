@@ -6,12 +6,17 @@ class Heatmap(ColorFilter):
     name = "Heatmap"
     help = "Heatmap"
 
-    def render_img(self, buf, addr, mouse_offs):
+    def render_img(self, buffers, addr, mouse_offs):
         colors = []
-        for c in buf:
-            c = ord(c) & 0xFF
-            r, g, b = self.hm(c)
-            colors.append(qRgb(r, g, b))
+        for mapped, buf in buffers:
+            if mapped:                
+                for c in buf:
+                    c = ord(c) & 0xFF
+                    r, g, b = self.hm(c)
+                    colors.append((True, qRgb(r, g, b)))
+            else:
+                for i in xrange(len(buf)):
+                    colors.append((False, 0))
         return colors
 
     def get_tooltip(self, addr, mouse_offs):

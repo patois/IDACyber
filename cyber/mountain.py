@@ -21,20 +21,27 @@ class Mountain(ColorFilter):
         return is_strlit(flags)
 
 
-    def render_img(self, buf, addr, mouse_offs):
+    def render_img(self, buffers, addr, mouse_offs):
         colors = []
-        for offs in xrange(len(buf)):
-            r = g = b = 0
-            c = ord(buf[offs]) & 0xFF
-            ea = addr + offs
-            f = get_func(ea)
-            if f:
-                g = b = c
-            elif self._is_string(ea):
-                g = c
+        goffs = 0
+        for mapped, buf in buffers:
+            if mapped:
+                for offs in xrange(len(buf)):
+                    r = g = b = 0
+                    c = ord(buf[offs]) & 0xFF
+                    ea = addr + goffs + offs
+                    f = get_func(ea)
+                    if f:
+                        g = b = c
+                    elif self._is_string(ea):
+                        g = c
+                    else:
+                        r = g = b = c
+                    colors.append((True, qRgb(r, g, b)))
             else:
-                r = g = b = c
-            colors.append(qRgb(r, g, b))
+                for i in xrange(len(buf)):
+                    colors.append((False, 0))
+            goffs += len(buf)
         return colors
 
     def get_tooltip(self, addr, mouse_offs):

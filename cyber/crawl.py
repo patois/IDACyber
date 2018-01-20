@@ -35,32 +35,40 @@ class Crawl(ColorFilter):
                 tooltip += '%s' % get_func_name(f.startEA)
         return tooltip
 
-    def render_img(self, buf, addr, mouse_offs):
+    def render_img(self, buffers, addr, mouse_offs):
         colors = []
         head = ida_idaapi.BADADDR
         tail = ida_idaapi.BADADDR
+        goffs = 0
 
-        if mouse_offs is not None:
-            if self.switch == 0: # data
-                head = get_item_head(addr + mouse_offs)
-                tail = get_item_end(addr + mouse_offs)
-            else: # code
-                f = get_func(addr + mouse_offs)
-                if f:
-                    head = f.startEA
-                    tail = f.endEA
+        for mapped, buf in buffers:
+            if mapped:
+                if mouse_offs is not None:
+                    if self.switch == 0: # data
+                        head = get_item_head(addr + mouse_offs)
+                        tail = get_item_end(addr + mouse_offs)
+                    else: # code
+                        f = get_func(addr + mouse_offs)
+                        if f:
+                            head = f.startEA
+                            tail = f.endEA
 
-        for pos in xrange(len(buf)):
-            c = ord(buf[pos]) & 0xFF
-            
-            highlight = False
-            if mouse_offs is not None:
-                if addr + pos >= head and addr + pos < tail:
-                    highlight = True
-            if highlight:
-                colors.append(qRgb(c, 0xFF, self.hl_color))
+                for pos in xrange(len(buf)):
+                    c = ord(buf[pos]) & 0xFF
+                    
+                    highlight = False
+                    if mouse_offs is not None:
+
+                        if addr + pos + goffs >= head and addr + pos + goffs < tail:
+                            highlight = True
+                    if highlight:
+                        colors.append((True, qRgb(c, 0xFF, self.hl_color)))
+                    else:
+                        colors.append((True, qRgb(c, 0, 0)))
             else:
-                colors.append(qRgb(c, 0, 0))
+                for pos in xrange(len(buf)):
+                    colors.append((False, 0))
+            goffs += len(buf)
         return colors
 
 def FILTER_ENTRY():
