@@ -32,7 +32,10 @@ class ColorFilter():
     highlight_cursor = True
     help = None
 
-    def on_activate(self, idx):
+    def on_activate(self, idx, pw):
+        pass
+
+    def on_deactivate(self):
         pass
 
     def on_mb_click(self, button, addr, mouse_offs):
@@ -180,6 +183,17 @@ class PixelWidget(QWidget):
             img.setPixel(p, ~(img.pixelColor(p)).rgb())
 
         return img
+
+    def filter_request_update(self, ea=None):
+        if not ea:
+            self.repaint()
+        else:
+            curea = self.get_address()
+            if ea < curea or ea >= curea + self.get_pixels_total():
+                self.set_addr(ea)
+            else:
+                self.repaint()
+
 
     def keyPressEvent(self, event):
         update = False
@@ -356,8 +370,10 @@ class PixelWidget(QWidget):
         return self.sync
     
     def set_filter(self, filter, idx):
+        if self.fm:
+            self.fm.on_deactivate()
         self.fm = filter
-        self.fm.on_activate(idx)
+        self.fm.on_activate(idx, self)
         self.repaint()
 
     def set_addr(self, ea):
@@ -468,6 +484,10 @@ class IDACyberForm(PluginForm):
                 filters.append(filter.FILTER_ENTRY())
         return filters
 
+    def _unload_filters(self):
+        for filter in self.filterlist:
+            filter.on_deactivate()
+
     def _change_screen_ea(self):
         if self.pw.get_sync_state():
             ea = ScreenEA()
@@ -543,6 +563,7 @@ class IDACyberForm(PluginForm):
     def OnClose(self, options):
         options = PluginForm.FORM_SAVE | PluginForm.FORM_NO_CONTEXT
         IDACyberForm.windows.remove(self.windowidx)
+        self._unload_filters()
         if not len(IDACyberForm.windows):
             IDACyberForm.hook.unhook()
             IDACyberForm.hook = None

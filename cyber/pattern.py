@@ -5,8 +5,8 @@ from ida_bytes import get_byte
 from ida_kernwin import ask_str, warning
 import re
 
-class Pattern(ColorFilter):
-    name = 'Pattern'
+class Regex(ColorFilter):
+    name = 'Regex'
     help = 'Highlight regular expression.\n\nRMB sets expression.'
 
     def __init__(self):
@@ -59,4 +59,4 @@ class Pattern(ColorFilter):
         return "0x%02X" % get_byte(addr + mouse_offs)
 
 def FILTER_ENTRY():
-    return Pattern()
+    return Regex()

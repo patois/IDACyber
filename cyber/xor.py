@@ -17,7 +17,7 @@ class Xor(ColorFilter):
         if key:
             self.key = key & 0xFF
 
-    def on_activate(self, idx):
+    def on_activate(self, idx, pw):
         msg("%s filter:\n  * RMB: pick XOR key from rendered image.\n  * MMB: assign XOR key." % Xor.name)
 
     def on_mb_click(self, button, addr, mouse_offs):

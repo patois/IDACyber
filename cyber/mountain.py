@@ -9,7 +9,7 @@ class Mountain(ColorFilter):
     name = 'Mountain'
     help = 'Highlight functions and strings.'
 
-    def on_activate(self, idx):
+    def on_activate(self, idx, pw):
         msg('%s\n' % Mountain.help)
 
     def on_mb_click(self, button, addr, mouse_offs):
