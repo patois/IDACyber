@@ -60,3 +60,9 @@ class Regex(ColorFilter):
 
 def FILTER_ENTRY():
     return Regex()
+
+def FILTER_INIT():
+    return True
+    
+def FILTER_EXIT():
+    return

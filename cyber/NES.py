@@ -24,3 +24,9 @@ class NES(ColorFilter):
     
 def FILTER_ENTRY():
     return NES()
+    
+def FILTER_INIT():
+    return True
+    
+def FILTER_EXIT():
+    return

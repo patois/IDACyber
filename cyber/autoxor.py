@@ -48,3 +48,9 @@ class AutoXor(ColorFilter):
 
 def FILTER_ENTRY():
     return AutoXor()
+
+def FILTER_INIT():
+    return True
+    
+def FILTER_EXIT():
+    return

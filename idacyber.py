@@ -481,12 +481,13 @@ class IDACyberForm(PluginForm):
             if entry.lower().endswith('.py') and entry.lower() != '__init__.py':
                 mod = os.path.splitext(entry)[0]
                 filter = __import__(mod, globals(), locals(), [], 0)
-                filters.append(filter.FILTER_ENTRY())
+                if filter.FILTER_INIT():
+                    filters.append((filter, filter.FILTER_ENTRY()))
         return filters
 
     def _unload_filters(self):
-        for filter in self.filterlist:
-            filter.on_deactivate()
+        for filter, obj in self.filterlist:
+            filter.FILTER_EXIT()
 
     def _change_screen_ea(self):
         if self.pw.get_sync_state():
@@ -496,7 +497,7 @@ class IDACyberForm(PluginForm):
             self._update_status_text()
 
     def _select_filter(self, idx):
-        self.pw.set_filter(self.filterlist[idx], idx)
+        self.pw.set_filter(self.filterlist[idx][1], idx)
         self.pw.repaint()
 
     def _toggle_sync(self, state):
@@ -527,7 +528,7 @@ class IDACyberForm(PluginForm):
         self.pw = PixelWidget(self.parent, IDACyberForm.idbh)
         self.pw.setFocusPolicy(Qt.StrongFocus | Qt.WheelFocus)
         self.pw.statechanged.connect(self._update_status_text)
-        self.pw.set_filter(self.filterlist[0], 0)
+        self.pw.set_filter(self.filterlist[0][1], 0)
         self.pw.set_addr(ScreenEA())
 
         vl.addWidget(self.pw)
@@ -537,7 +538,7 @@ class IDACyberForm(PluginForm):
         hl.addWidget(flt)
 
         self.filterChoser = QComboBox()
-        self.filterChoser.addItems([filter.name for filter in self.filterlist])
+        self.filterChoser.addItems([obj.name for filter, obj in self.filterlist])
         self.filterChoser.currentIndexChanged.connect(self._select_filter)
         hl.addWidget(self.filterChoser)
         hl.addStretch(1)

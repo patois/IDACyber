@@ -66,3 +66,9 @@ class Ascii(ColorFilter):
     
 def FILTER_ENTRY():
     return Ascii()
+
+def FILTER_INIT():
+    return True
+    
+def FILTER_EXIT():
+    return

@@ -44,3 +44,9 @@ class Xor(ColorFilter):
 
 def FILTER_ENTRY():
     return Xor()
+
+def FILTER_INIT():
+    return True
+    
+def FILTER_EXIT():
+    return

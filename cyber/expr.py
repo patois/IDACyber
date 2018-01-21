@@ -44,3 +44,9 @@ class xpression(ColorFilter):
 
 def FILTER_ENTRY():
     return xpression()
+
+def FILTER_INIT():
+    return True
+    
+def FILTER_EXIT():
+    return

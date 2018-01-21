@@ -32,5 +32,11 @@ class Heatmap(ColorFilter):
         return r, g, b
 
     
-def FILTER_ENTRY(pw=None):
+def FILTER_ENTRY():
     return Heatmap()
+
+def FILTER_INIT():
+    return True
+    
+def FILTER_EXIT():
+    return

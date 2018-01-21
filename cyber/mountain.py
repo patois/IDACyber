@@ -49,3 +49,9 @@ class Mountain(ColorFilter):
     
 def FILTER_ENTRY():
     return Mountain()
+
+def FILTER_INIT():
+    return True
+    
+def FILTER_EXIT():
+    return

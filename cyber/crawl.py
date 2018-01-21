@@ -73,3 +73,9 @@ class Crawl(ColorFilter):
 
 def FILTER_ENTRY():
     return Crawl()
+
+def FILTER_INIT():
+    return True
+    
+def FILTER_EXIT():
+    return

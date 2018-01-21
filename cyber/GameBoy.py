@@ -29,3 +29,9 @@ class GameBoy(ColorFilter):
     
 def FILTER_ENTRY():
     return GameBoy()
+
+def FILTER_INIT():
+    return True
+    
+def FILTER_EXIT():
+    return
