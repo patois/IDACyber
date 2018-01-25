@@ -144,14 +144,27 @@ class PixelWidget(QWidget):
         self.show()
 
     def paintEvent(self, event):
+        # set leftmost x-coordinate of graph
+        self.rect_x = (self.rect().width() / 2) - ((self.maxPixelsPerLine * self.pixelSize) / 2)
+
         qp = QPainter()
         qp.begin(self)
+
+        # fill background
         qp.fillRect(self.rect(), Qt.black)
 
-        self.img = self.render_image()
-        if self.img is not None:
-            self.rect_x = (self.rect().width() / 2) - ((self.maxPixelsPerLine * self.pixelSize) / 2)
+        # draw addresses
+        qp.setPen(QColor(Qt.white))
+        top = "%X:" % self.get_address()
+        bottom = "%X:" % (self.get_address() + ((self.maxPixelsTotal / self.maxPixelsPerLine) - 1) * self.maxPixelsPerLine)
+        qp.drawText(self.rect_x - qp.fontMetrics().width(top) - self.pixelSize, qp.fontMetrics().height(), top)
+        qp.drawText(self.rect_x - qp.fontMetrics().width(top) - self.pixelSize, self.rect().height() - qp.fontMetrics().height() / 2, bottom)
 
+        # use colorfilter to render image
+        self.img = self.render_image()
+
+        # draw image
+        if self.img is not None:    
             qp.drawImage(QRect(QPoint(self.rect_x, 0), 
                 QPoint(self.rect_x + self.maxPixelsPerLine * self.pixelSize, (self.maxPixelsTotal / self.maxPixelsPerLine) * self.pixelSize)),
                 self.img)
