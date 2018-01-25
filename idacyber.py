@@ -1,6 +1,6 @@
 import os
 from PyQt5.QtWidgets import QWidget, QApplication, QCheckBox, QLabel, QComboBox, QSizePolicy
-from PyQt5.QtGui import QPainter, QColor, QFont, QPen, QPixmap, QImage, qRgb
+from PyQt5.QtGui import QPainter, QColor, QFont, QPen, QPixmap, QImage, qRgb, QPainterPath
 from PyQt5.QtCore import Qt, QObject, pyqtSignal, QRect, QSize, QPoint
 from idaapi import *
 from ida_kernwin import msg
@@ -22,10 +22,14 @@ banner = """
 
 #   TODO:
 #   * refactor
+#   * improve/refactor colorfilter callbacks (do not process gaps)
+#   * callbacks for adding custom text next to graph
+#   * 
 #   * sync mouse cursor to IDA cursor (ScreenEA())
 #   * optimized redrawing
 #   * load filters using "require" instead of using "import"
 #   * add grid?
+#   * use internal scaling etc?
 
 class ColorFilter():
     name = None
@@ -168,6 +172,23 @@ class PixelWidget(QWidget):
             qp.drawImage(QRect(QPoint(self.rect_x, 0), 
                 QPoint(self.rect_x + self.maxPixelsPerLine * self.pixelSize, (self.maxPixelsTotal / self.maxPixelsPerLine) * self.pixelSize)),
                 self.img)
+
+        base_x = self.rect_x + self.maxPixelsPerLine * self.pixelSize + 20
+        base_y = qp.fontMetrics().height()
+
+        # draw arrow (experimental / WIP)
+        qp.drawText(base_x+5, base_y, "%X" % (self.get_address() + self.mouseOffs))
+
+        path = QPainterPath()
+        path.moveTo(base_x, base_y/2)
+        path.lineTo(base_x - 10, base_y/2)  # left
+
+        path.lineTo(base_x - 10, ((self.get_elem_y()*self.pixelSize/10)*9) + self.pixelSize/2) # down
+        path.lineTo(self.rect_x + self.get_elem_x()*self.pixelSize + self.pixelSize / 2, ((self.get_elem_y()*self.pixelSize/10)*9) + self.pixelSize/2) # left
+        path.lineTo(self.rect_x + self.get_elem_x()*self.pixelSize + self.pixelSize / 2, self.get_elem_y()*self.pixelSize + self.pixelSize/2) # down
+
+        qp.drawPath(path)
+
 
         qp.end()       
 
