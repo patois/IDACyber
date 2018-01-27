@@ -3,6 +3,7 @@ from PyQt5.QtCore import Qt
 from idacyber import ColorFilter
 from ida_bytes import get_item_size, get_byte, get_item_head, get_item_end
 from ida_name import get_name
+from ida_lines import generate_disasm_line, GENDSM_FORCE_CODE, GENDSM_REMOVE_TAGS
 
 class Annotations(ColorFilter):
     name = "Annotations"
@@ -11,10 +12,9 @@ class Annotations(ColorFilter):
     def __init__(self):
         # "space-gray like Color Palette" http://www.color-hex.com/color-palette/2280
         self.colormap = [0x343d46, 0x4f5b66, 0x65737e, 0xa7adba, 0xc0c5ce]
+        self.red = [0xCC3700, 0xFF4500]
 
     def render_img(self, buffers, addr, mouse_offs):
-        #Bit    7  6  5  4  3  2  1  0
-        #Data   R  R  R  G  G  G  B  B
         colors = []
         goffs = 0
 
@@ -27,7 +27,7 @@ class Annotations(ColorFilter):
                 for i in xrange(len(buf)):           
                     c = ord(buf[i])
                     if addr + i + goffs >= head and addr + i + goffs < tail:
-                        col = qRgb(0xFF, 0x45, 0)
+                        col = self.red[1]
                     else:
                         col = self.colormap[c/(0xff/(len(self.colormap)-1))]
 
@@ -35,7 +35,7 @@ class Annotations(ColorFilter):
             else:
                 for i in xrange(len(buf)):
                     if addr + i + goffs >= head and addr + i + goffs < tail:
-                        colors.append((False, qRgb(0xFF, 0x45, 0)))
+                        colors.append((False, self.red[0]))
                     else:
                         colors.append((False, None))
 
@@ -44,10 +44,19 @@ class Annotations(ColorFilter):
         return colors
 
     def get_annotations(self, address, size, mouse_offs):
-        ann = [(address + mouse_offs, self.colormap[-1], "%X (Cursor)" % (address + mouse_offs), self.colormap[-1]),
-        (None, None, "  %02X (byte value)" % get_byte(address + mouse_offs), self.colormap[-1]),
-        (None, None, "  %d (item size)" % get_item_size(get_item_head(address + mouse_offs)), self.colormap[-1]),
-        (None, None, "  %s" % get_name(get_item_head(address + mouse_offs)), self.colormap[-1])]
+        item_ea = get_item_head(address + mouse_offs)
+        cursor_ea = address + mouse_offs
+        name = get_name(item_ea)
+        if len(name):
+            name = "(%s)" % name
+        else:
+            name = ""
+        ann = [(item_ea, self.red[0], "Item: %X" % (item_ea), self.colormap[-1]),
+        (None, None, "  Size: %d %s" % (get_item_size(get_item_head(cursor_ea)), name), self.colormap[-3]),
+        (cursor_ea, self.colormap[-1], "Cursor: %X" % (cursor_ea), self.colormap[-1]),
+        (None, None, "  %s" % generate_disasm_line(cursor_ea, GENDSM_FORCE_CODE | GENDSM_REMOVE_TAGS), self.colormap[-3]),
+        (None, None, "  Value: %02X" % get_byte(cursor_ea), self.colormap[-3]),
+        ]
         return ann
 
 def FILTER_ENTRY():
