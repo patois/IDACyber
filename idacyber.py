@@ -212,11 +212,11 @@ class PixelWidget(QWidget):
         return img
 
     def render_annotations(self, qp, annotations=[]):
-        base_x = self.rect_x + self.maxPixelsPerLine * self.pixelSize + 20
+        a_offs = 20
+        base_x = self.rect_x + self.maxPixelsPerLine * self.pixelSize + a_offs + 10
         base_y = qp.fontMetrics().height()
         offs_x = 5
         offs_y = base_y
-        a_offs = 10
 
         for coords, arr_color, ann, txt_color in annotations:
             # draw arrow (experimental / WIP)
