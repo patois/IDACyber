@@ -1,7 +1,7 @@
 from PyQt5.QtGui import qRgb, QColor
 from idacyber import ColorFilter
 from PyQt5.QtCore import Qt
-from ida_dbg import get_ip_val, DBG_Hooks, is_step_trace_enabled
+from ida_dbg import get_ip_val, get_sp_val, DBG_Hooks, is_step_trace_enabled
 from ida_bytes import get_item_size
 from ida_kernwin import register_timer, unregister_timer, warning, ask_yn
 
@@ -54,7 +54,7 @@ class DbgHook(DBG_Hooks):
     def request_update_ip_view(self, ip=None):
         _ip = ip if ip else get_ip_val()
         if self.pw:
-            self.pw.filter_request_update(_ip)
+            self.pw.filter_request_update(_ip, center=True)
 
     """looks neat but tends to mess up something
     The current version of IDA v7.x seems to have
@@ -70,18 +70,19 @@ class DbgHook(DBG_Hooks):
         self.counter += 1
         return 0
 
+    """
     def dbg_process_start(self, pid, tid, ea, modinfo_name, modinfo_base, modinfo_size):
         self.enable_timer()
         return 0
-
+    """
     def dbg_process_exit(self, pid, tid, ea, exit_code):
         self.disable_timer()
         return 0
-
+    """
     def dbg_process_attach(self, pid, tid, ea, modinfo_name, modinfo_base, modinfo_size):
         self.enable_timer()
         return 0
-
+    """
     def dbg_process_detach(self, pid, tid, ea):
         self.disable_timer()
         return 0
@@ -90,6 +91,7 @@ class DbgHook(DBG_Hooks):
     since it is called along with the other events
     that have been commented out below"""
     def dbg_suspend_process(self):
+        self.enable_timer()
         self.add_hit()
         self.request_update_ip_view()
         return 0
@@ -128,10 +130,6 @@ class Dbg(ColorFilter):
 
     def __init__(self):
         self.pw = None
-        # http://www.color-hex.com/color-palette/41217
-        #self.palette = [0x12519e, 0x54a1cf, 0x84aebe, 0x96cedf, 0xf8fdff]
-        # http://www.color-hex.com/color-palette/34885
-        #self.palette = [0x1d59eb, 0x3466c0, 0x0ea7ac, 0x22b592, 0x19eb81]
         self.palette = [0x1d59eb, 0x3466c0, 0x0ea7ac, 0x22b592, 0xebaf1d]
 
     def on_activate(self, idx, pw):
@@ -149,23 +147,15 @@ class Dbg(ColorFilter):
         return
 
     def byte2coloridx(self, c):
-        if c>=0 and c <= 0x3F:
-            idx = 0
-        elif c>=0x40 and c <= 0x7F:
-            idx = 1
-        elif c>=0x80 and c <= 0xBF:
-            idx = 2
-        elif c>=0xC0 and c <= 0xFF:
-            idx = 3
-        return idx
+        return c/(0xff/(len(self.palette)-1))
 
     def get_annotations(self, address, size, mouse_offs):
-        ann = [[None, None, "%X (Cursor)" % (address + mouse_offs), None],
-        [address, None, "%X (Start)" % address, None],
-        [address+size-1, None, "%X (End)" % (address+size-1), None]]
+        ann = []
         ip = get_ip_val()
-        if ip is not None:
-            ann.append([ip, Qt.red, "%X (IP)" % ip, Qt.red])
+        sp = get_sp_val()
+        if ip is not None and sp is not None:
+            ann.append((ip, Qt.red, "%X (IP)" % ip, Qt.red))
+            ann.append((sp, Qt.green, "%X (SP)" % sp, Qt.green))
         return ann
 
     def render_img(self, buffers, addr, mouse_offs):

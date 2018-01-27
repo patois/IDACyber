@@ -23,10 +23,10 @@ banner = """
 #   TODO:
 #   * refactor
 #   * colorfilter: improve/refactor callbacks (do not process gaps)?
-#   * colorfilter: callbacks for adding custom text next to graph
-#   * colorfilter: callbacks for arrows
+#   * colorfilter: improve arrows
 #   * colorfilter: return filter flags (controls behavior of graph etc)
 #   * fix keyboard controls bug
+#   * fix multiple "Dbg" filter instances bug
 #   * optimize redrawing?
 #   * load filters using "require"
 #   * add grid?
@@ -198,7 +198,8 @@ class PixelWidget(QWidget):
         transparency_dark = [qRgb(0x2F,0x4F,0x4F), qRgb(0x00,0x00,0x00)]
         for mapped, pix in pixels:
             if not mapped:
-                pix = transparency_dark[(x&2 != 0) ^ (y&2 != 0)]
+                if pix is None:
+                    pix = transparency_dark[(x&2 != 0) ^ (y&2 != 0)]
             img.setPixel(x, y, pix)
             x = (x + 1) % self.maxPixelsPerLine
             if not x:
@@ -247,12 +248,15 @@ class PixelWidget(QWidget):
             offs_y += 2*base_y + 5
         return
 
-    def filter_request_update(self, ea=None):
+    def filter_request_update(self, ea=None, center=True):
         if not ea:
             self.repaint()
         else:
             curea = self.get_address()
             if ea < curea or ea >= curea + self.get_pixels_total():
+                # TODO: verify that ea is valid after following operation
+                if center:
+                    ea -= self.get_pixels_total()/2
                 self.set_addr(ea)
             else:
                 self.repaint()
@@ -581,7 +585,7 @@ class IDACyberForm(PluginForm):
         while True:
             i += 1
             if i not in IDACyberForm.windows:
-                title = 'IDA Cyber [%d]' % i
+                title = 'IDACyber [%d]' % i
                 caption = title
                 IDACyberForm.windows.append(i)
                 self.windowidx = i
