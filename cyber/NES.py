@@ -19,7 +19,7 @@ class NES(ColorFilter):
                     colors.append((True, qRgb(red, green, blue)))
             else:
                 for i in xrange(len(buf)):
-                    colors.append((False,0))
+                    colors.append((False, None))
         return colors
     
 def FILTER_ENTRY():

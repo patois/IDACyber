@@ -52,7 +52,7 @@ class Regex(ColorFilter):
                     offs += 1
             else:
                 for i in xrange(len(buf)):
-                    colors.append((False, 0))
+                    colors.append((False, None))
         return colors
     
     def get_tooltip(self, addr, mouse_offs):

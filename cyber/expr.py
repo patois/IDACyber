@@ -39,7 +39,7 @@ class xpression(ColorFilter):
                     colors.append((True, qRgb(r&0xFF, g&0xFF, b&0xFF)))
             else:
                 for i in xrange(len(buf)):
-                    colors.append((False,0))
+                    colors.append((False, None))
         return colors
 
 def FILTER_ENTRY():

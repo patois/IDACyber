@@ -36,7 +36,7 @@ class AutoXor(ColorFilter):
                     colors.append((True, qRgb(c, 0, c)))
             else:
                 for i in xrange(len(buf)):
-                    colors.append((False,0))
+                    colors.append((False, None))
         return colors
 
 

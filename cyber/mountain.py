@@ -40,7 +40,7 @@ class Mountain(ColorFilter):
                     colors.append((True, qRgb(r, g, b)))
             else:
                 for i in xrange(len(buf)):
-                    colors.append((False, 0))
+                    colors.append((False, None))
             goffs += len(buf)
         return colors
 

@@ -67,7 +67,7 @@ class Crawl(ColorFilter):
                         colors.append((True, qRgb(c, 0, 0)))
             else:
                 for pos in xrange(len(buf)):
-                    colors.append((False, 0))
+                    colors.append((False, None))
             goffs += len(buf)
         return colors
 

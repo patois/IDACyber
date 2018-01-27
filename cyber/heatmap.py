@@ -16,7 +16,7 @@ class Heatmap(ColorFilter):
                     colors.append((True, qRgb(r, g, b)))
             else:
                 for i in xrange(len(buf)):
-                    colors.append((False, 0))
+                    colors.append((False, None))
         return colors
 
     def get_tooltip(self, addr, mouse_offs):

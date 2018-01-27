@@ -193,7 +193,7 @@ class Dbg(ColorFilter):
                     i += 1
             else:
                 for i in xrange(len(buf)):
-                    colors.append((False, 0))
+                    colors.append((False, None))
             goffs += len(buf)
         return colors
 
