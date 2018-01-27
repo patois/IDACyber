@@ -177,8 +177,8 @@ class PixelWidget(QWidget):
                 QPoint(self.rect_x + self.maxPixelsPerLine * self.pixelSize, (self.maxPixelsTotal / self.maxPixelsPerLine) * self.pixelSize)),
                 img)
 
+        # get and draw annotations and pointers
         annotations = self.fm.get_annotations(self.get_address(), self.get_bytes_total(), self.mouseOffs)
-
         if annotations:
             self.render_annotations(qp, annotations)
 
@@ -216,7 +216,7 @@ class PixelWidget(QWidget):
         base_y = qp.fontMetrics().height()
         offs_x = 5
         offs_y = base_y
-        a_offs = 0
+        a_offs = 10
 
         for coords, arr_color, ann, txt_color in annotations:
             # draw arrow (experimental / WIP)
@@ -239,11 +239,11 @@ class PixelWidget(QWidget):
                     path = QPainterPath()
                     path.moveTo(base_x+offs_x, (base_y+offs_y)/2-base_y/2)
 
-                    path.lineTo(base_x+offs_x - 10 - a_offs, (base_y+offs_y)/2-base_y/2)  # left
-                    path.lineTo(base_x+offs_x - 10 - a_offs, ((target_y/10)*9) + self.pixelSize/2) # down
+                    path.lineTo(base_x+offs_x - 4 - a_offs, (base_y+offs_y)/2-base_y/2)  # left
+                    path.lineTo(base_x+offs_x - 4 - a_offs, ((target_y/10)*9) + self.pixelSize/2) # down
                     path.lineTo(self.rect_x + target_x + self.pixelSize / 2, ((target_y/10)*9) + self.pixelSize/2) # left
                     path.lineTo(self.rect_x + target_x + self.pixelSize / 2, target_y + self.pixelSize/2) # down
-                    a_offs -= 4
+                    a_offs = max(a_offs-2, 0)
                     qp.drawPath(path)
             offs_y += 2*base_y + 5
         return
