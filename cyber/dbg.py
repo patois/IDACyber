@@ -139,12 +139,14 @@ class Dbg(ColorFilter):
         self.pw = pw
         if HOOK:
             HOOK.set_pw(self.pw)
+        return
 
     def on_mb_click(self, button, addr, mouse_offs):
         if button == Qt.RightButton:
             if ask_yn(1, "Clear trace?") == 1:
                 global HOOK
                 HOOK.hits = {}
+        return
 
     def byte2coloridx(self, c):
         if c>=0 and c <= 0x3F:
@@ -156,6 +158,15 @@ class Dbg(ColorFilter):
         elif c>=0xC0 and c <= 0xFF:
             idx = 3
         return idx
+
+    def get_annotations(self, address, size, mouse_offs):
+        ann = [[None, None, "%X (Cursor)" % (address + mouse_offs), None],
+        [address, None, "%X (Start)" % address, None],
+        [address+size-1, None, "%X (End)" % (address+size-1), None]]
+        ip = get_ip_val()
+        if ip is not None:
+            ann.append([ip, Qt.red, "%X (IP)" % ip, Qt.red])
+        return ann
 
     def render_img(self, buffers, addr, mouse_offs):
         colors = []

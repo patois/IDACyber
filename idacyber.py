@@ -22,14 +22,16 @@ banner = """
 
 #   TODO:
 #   * refactor
-#   * improve/refactor colorfilter callbacks (do not process gaps)
-#   * callbacks for adding custom text next to graph
-#   * 
-#   * sync mouse cursor to IDA cursor (ScreenEA())
-#   * optimized redrawing
-#   * load filters using "require" instead of using "import"
+#   * colorfilter: improve/refactor callbacks (do not process gaps)?
+#   * colorfilter: callbacks for adding custom text next to graph
+#   * colorfilter: callbacks for arrows
+#   * colorfilter: return filter flags (controls behavior of graph etc)
+#   * fix keyboard controls bug
+#   * optimize redrawing?
+#   * load filters using "require"
 #   * add grid?
 #   * use internal scaling etc?
+#   * store current settings in netnode
 
 class ColorFilter():
     name = None
@@ -49,6 +51,9 @@ class ColorFilter():
         return []
 
     def get_tooltip(self, addr, mouse_offs):
+        return None
+
+    def get_annotations(self, addr, size, mouse_offs):
         return None
 
 # -----------------------------------------------------------------------
@@ -121,8 +126,8 @@ class PixelWidget(QWidget):
         super(PixelWidget, self).__init__()
 
         self.form = form
-        self.pixelSize = 5
-        self.maxPixelsPerLine = 32
+        self.pixelSize = 3
+        self.maxPixelsPerLine = 64
         self.maxPixelsTotal = 0
         self.old_mouse_y = 0
         self.key = None
@@ -137,7 +142,6 @@ class PixelWidget(QWidget):
         self.elemX = 0
         self.elemY = 0
         self.rect_x = 0
-        self.img = None
         
         self.setMouseTracking(True)        
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -162,33 +166,21 @@ class PixelWidget(QWidget):
         top = "%X:" % self.get_address()
         bottom = "%X:" % (self.get_address() + ((self.maxPixelsTotal / self.maxPixelsPerLine) - 1) * self.maxPixelsPerLine)
         qp.drawText(self.rect_x - qp.fontMetrics().width(top) - self.pixelSize, qp.fontMetrics().height(), top)
-        qp.drawText(self.rect_x - qp.fontMetrics().width(top) - self.pixelSize, self.rect().height() - qp.fontMetrics().height() / 2, bottom)
+        qp.drawText(self.rect_x - qp.fontMetrics().width(bottom) - self.pixelSize, self.rect().height() - qp.fontMetrics().height() / 2, bottom)
 
         # use colorfilter to render image
-        self.img = self.render_image()
+        img = self.render_image()
 
         # draw image
-        if self.img is not None:    
+        if img is not None:    
             qp.drawImage(QRect(QPoint(self.rect_x, 0), 
                 QPoint(self.rect_x + self.maxPixelsPerLine * self.pixelSize, (self.maxPixelsTotal / self.maxPixelsPerLine) * self.pixelSize)),
-                self.img)
+                img)
 
-        base_x = self.rect_x + self.maxPixelsPerLine * self.pixelSize + 20
-        base_y = qp.fontMetrics().height()
+        annotations = self.fm.get_annotations(self.get_address(), self.get_bytes_total(), self.mouseOffs)
 
-        # draw arrow (experimental / WIP)
-        qp.drawText(base_x+5, base_y, "%X" % (self.get_address() + self.mouseOffs))
-
-        path = QPainterPath()
-        path.moveTo(base_x, base_y/2)
-        path.lineTo(base_x - 10, base_y/2)  # left
-
-        path.lineTo(base_x - 10, ((self.get_elem_y()*self.pixelSize/10)*9) + self.pixelSize/2) # down
-        path.lineTo(self.rect_x + self.get_elem_x()*self.pixelSize + self.pixelSize / 2, ((self.get_elem_y()*self.pixelSize/10)*9) + self.pixelSize/2) # left
-        path.lineTo(self.rect_x + self.get_elem_x()*self.pixelSize + self.pixelSize / 2, self.get_elem_y()*self.pixelSize + self.pixelSize/2) # down
-
-        qp.drawPath(path)
-
+        if annotations:
+            self.render_annotations(qp, annotations)
 
         qp.end()       
 
@@ -217,6 +209,43 @@ class PixelWidget(QWidget):
             img.setPixel(p, ~(img.pixelColor(p)).rgb())
 
         return img
+
+    def render_annotations(self, qp, annotations=[]):
+        base_x = self.rect_x + self.maxPixelsPerLine * self.pixelSize + 20
+        base_y = qp.fontMetrics().height()
+        offs_x = 5
+        offs_y = base_y
+        a_offs = 0
+
+        for coords, arr_color, ann, txt_color in annotations:
+            # draw arrow (experimental / WIP)
+            qp.setPen(QColor(Qt.white if txt_color is None else txt_color))
+            qp.drawText(base_x+10, (base_y+offs_y)/2, ann)
+            target_x = target_y = None
+            if coords:
+                if isinstance(coords, tuple):
+                    target_x, target_y = coords
+                else:
+                    ptr = self.get_coords_by_address(coords)
+                    if ptr:
+                        target_x, target_y = ptr
+
+                if target_x is not None and target_y is not None:
+                    target_x *= self.pixelSize
+                    target_y *= self.pixelSize
+
+                    qp.setPen(QColor(Qt.white if arr_color is None else arr_color))
+                    path = QPainterPath()
+                    path.moveTo(base_x+offs_x, (base_y+offs_y)/2-base_y/2)
+
+                    path.lineTo(base_x+offs_x - 10 - a_offs, (base_y+offs_y)/2-base_y/2)  # left
+                    path.lineTo(base_x+offs_x - 10 - a_offs, ((target_y/10)*9) + self.pixelSize/2) # down
+                    path.lineTo(self.rect_x + target_x + self.pixelSize / 2, ((target_y/10)*9) + self.pixelSize/2) # left
+                    path.lineTo(self.rect_x + target_x + self.pixelSize / 2, target_y + self.pixelSize/2) # down
+                    a_offs -= 4
+                    qp.drawPath(path)
+            offs_y += 2*base_y + 5
+        return
 
     def filter_request_update(self, ea=None):
         if not ea:
@@ -434,6 +463,16 @@ class PixelWidget(QWidget):
 
     def get_cursor_address(self):
         return self.get_address() + self.mouseOffs
+
+    def get_coords_by_address(self, address):
+        base = self.get_address()
+        # if address is visible in current window
+        if address >= base and address < base + self.get_pixels_total():
+            offs = address - base
+            x = offs % self.get_width()
+            y = offs / (self.get_width())
+            return (x, y)
+        return None
 
     def set_zoom_delta(self, dzoom):
         self.pixelSize = max(1, self.pixelSize + dzoom)
