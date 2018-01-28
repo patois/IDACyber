@@ -28,7 +28,7 @@ class Ascii(ColorFilter):
             offsets = {}
             if mapped:
                 localcolors = []
-                for i in xrange(len(buf)):           
+                for i in xrange(len(buf)):
                     c = ord(buf[i])
                     r = 0
                     printable = c >= 0x20 and c <= 0x7E

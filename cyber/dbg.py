@@ -109,6 +109,7 @@ class Dbg(ColorFilter):
     def __init__(self, pw):
         self.pw = pw
         self.palette = [0x1d59eb, 0x3466c0, 0x0ea7ac, 0x22b592, 0xebaf1d]
+        self.exec_col = 0x59eb1d
         self.hook = None
 
     def on_activate(self, idx):
@@ -132,7 +133,7 @@ class Dbg(ColorFilter):
         return
 
     def _byte2coloridx(self, c):
-        return c/(0xff/(len(self.palette)-1))
+        return c/(0xff/(len(self.palette)-2))
 
     def on_get_annotations(self, address, size, mouse_offs):
         ann = []
@@ -165,7 +166,7 @@ class Dbg(ColorFilter):
                             hits = data[0]
                             for j in xrange(size):
                                 base = self.palette[len(self.palette)-1]
-                                col = QColor(base).lighter(100+(float(hits)/self.hook.maxhits)*100).rgb()
+                                col = QColor(base).darker(100+(float(hits)/self.hook.maxhits)*105).rgb()
                                 colors.append((True, col))
                             i += size
                             continue
