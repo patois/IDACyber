@@ -26,7 +26,7 @@ class AutoXor(ColorFilter):
                     msg('Key %02Xh - %d/%d (%.2f%%)\n' % (cur, self.occurence, self.size, float(self.occurence)/float(self.size)*100.0))
                     self.key = cur
 
-    def render_img(self, buffers, addr, mouse_offs):
+    def on_process_buffer(self, buffers, addr, size, mouse_offs):
         colors = []
         self._update_key(buffers)
         for mapped, buf in buffers:
@@ -40,17 +40,14 @@ class AutoXor(ColorFilter):
         return colors
 
 
-    def get_tooltip(self, addr, mouse_offs):
+    def on_get_tooltip(self, addr, size, mouse_offs):
         result = None
         if self.size:
             result = "Key %02Xh - %d/%d (%.2f%%)" % (self.key, self.occurence, self.size, float(self.occurence)/float(self.size)*100.0)
         return result
 
-def FILTER_ENTRY():
+def FILTER_INIT(pw):
     return AutoXor()
-
-def FILTER_INIT():
-    return True
     
 def FILTER_EXIT():
     return

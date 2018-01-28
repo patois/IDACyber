@@ -5,7 +5,7 @@ class NES(ColorFilter):
     name = "NES"
     help = "8-Bit colors"
 
-    def render_img(self, buffers, addr, mouse_offs):
+    def on_process_buffer(self, buffers, addr, size, mouse_offs):
         #Bit    7  6  5  4  3  2  1  0
         #Data   R  R  R  G  G  G  B  B
         colors = []
@@ -22,11 +22,8 @@ class NES(ColorFilter):
                     colors.append((False, None))
         return colors
     
-def FILTER_ENTRY():
+def FILTER_INIT(pw):
     return NES()
-    
-def FILTER_INIT():
-    return True
     
 def FILTER_EXIT():
     return

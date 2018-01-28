@@ -9,10 +9,10 @@ class Mountain(ColorFilter):
     name = 'Mountain'
     help = 'Highlight functions and strings.'
 
-    def on_activate(self, idx, pw):
+    def on_activate(self, idx):
         msg('%s\n' % Mountain.help)
 
-    def on_mb_click(self, button, addr, mouse_offs):
+    def on_mb_click(self, button, addr, size, mouse_offs):
         msg('click at %X\n' % (addr + mouse_offs))
 
     def _is_string(self, ea):
@@ -20,8 +20,7 @@ class Mountain(ColorFilter):
         flags = get_flags(head)
         return is_strlit(flags)
 
-
-    def render_img(self, buffers, addr, mouse_offs):
+    def on_process_buffer(self, buffers, addr, size, mouse_offs):
         colors = []
         goffs = 0
         for mapped, buf in buffers:
@@ -44,14 +43,11 @@ class Mountain(ColorFilter):
             goffs += len(buf)
         return colors
 
-    def get_tooltip(self, addr, mouse_offs):
+    def on_get_tooltip(self, addr, size, mouse_offs):
         return '0x%02X' % get_byte(addr + mouse_offs)
     
-def FILTER_ENTRY():
+def FILTER_INIT(pw):
     return Mountain()
-
-def FILTER_INIT():
-    return True
     
 def FILTER_EXIT():
     return

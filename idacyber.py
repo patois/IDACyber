@@ -24,36 +24,51 @@ banner = """
 #   * refactor
 #   * colorfilter: improve/refactor callbacks (do not process gaps)?
 #   * colorfilter: improve arrows
-#   * colorfilter: return filter flags (controls behavior of graph etc)
+#   * colorfilter: finish implementing filter config options (controls behavior of graph etc)
 #   * fix keyboard controls bug
-#   * fix multiple "Dbg" filter instances bug
 #   * optimize redrawing?
 #   * load filters using "require"
 #   * add grid?
-#   * use internal scaling etc?
+#   * use Qt scaling etc?
 #   * store current settings in netnode
 
 class ColorFilter():
     name = None
     highlight_cursor = True
     help = None
+    width = 64
+    sync = True
+    lock_width = False
+    lock_sync = False
+    show_address_range = True
+    zoom = 3
 
-    def on_activate(self, idx, pw):
+    def __init__(self, pw=None):
         pass
 
+    """called when filter is selected in list"""
+    def on_activate(self, idx):
+        pass
+
+    """called on deselection of filter (or when plugin closes)"""
     def on_deactivate(self):
         pass
 
-    def on_mb_click(self, button, addr, mouse_offs):
+    """handles mouse click events"""
+    def on_mb_click(self, button, addr, size, mouse_offs):
         pass
     
-    def render_img(self, buffers, addr, mouse_offs):
+    """called whenever a new frame is about to be drawn"""
+    def on_process_buffer(self, buffers, addr, size, mouse_offs):
         return []
 
-    def get_tooltip(self, addr, mouse_offs):
+    """called before tooltip is shown"""
+    def on_get_tooltip(self, addr, size, mouse_offs):
         return None
 
-    def get_annotations(self, addr, size, mouse_offs):
+    """called after on_process_buffer
+    returns annotations and arrows/pointers"""
+    def on_get_annotations(self, addr, size, mouse_offs):
         return None
 
 # -----------------------------------------------------------------------
@@ -136,12 +151,13 @@ class PixelWidget(QWidget):
         self.base = 0
         self.fm = None
         self.mouseOffs = 0
-        self.numbytes = 0
         self.sync = True
         self.bh = bufhandler
         self.elemX = 0
         self.elemY = 0
         self.rect_x = 0
+        self.lock_width = False
+        self.lock_sync = False
         
         self.setMouseTracking(True)        
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -161,12 +177,13 @@ class PixelWidget(QWidget):
         # fill background
         qp.fillRect(self.rect(), Qt.black)
 
-        # draw addresses
-        qp.setPen(QColor(Qt.white))
-        top = "%X:" % self.get_address()
-        bottom = "%X:" % (self.get_address() + ((self.maxPixelsTotal / self.maxPixelsPerLine) - 1) * self.maxPixelsPerLine)
-        qp.drawText(self.rect_x - qp.fontMetrics().width(top) - self.pixelSize, qp.fontMetrics().height(), top)
-        qp.drawText(self.rect_x - qp.fontMetrics().width(bottom) - self.pixelSize, self.rect().height() - qp.fontMetrics().height() / 2, bottom)
+        if self.show_address_range:
+            # draw addresses
+            qp.setPen(QColor(Qt.white))
+            top = "%X:" % self.get_address()
+            bottom = "%X:" % (self.get_address() + ((self.get_pixels_total() / self.maxPixelsPerLine) - 1) * self.maxPixelsPerLine)
+            qp.drawText(self.rect_x - qp.fontMetrics().width(top) - self.pixelSize, qp.fontMetrics().height(), top)
+            qp.drawText(self.rect_x - qp.fontMetrics().width(bottom) - self.pixelSize, self.rect().height() - qp.fontMetrics().height() / 2, bottom)
 
         # use colorfilter to render image
         img = self.render_image()
@@ -174,11 +191,11 @@ class PixelWidget(QWidget):
         # draw image
         if img is not None:    
             qp.drawImage(QRect(QPoint(self.rect_x, 0), 
-                QPoint(self.rect_x + self.maxPixelsPerLine * self.pixelSize, (self.maxPixelsTotal / self.maxPixelsPerLine) * self.pixelSize)),
+                QPoint(self.rect_x + self.maxPixelsPerLine * self.pixelSize, (self.get_pixels_total() / self.maxPixelsPerLine) * self.pixelSize)),
                 img)
 
         # get and draw annotations and pointers
-        annotations = self.fm.get_annotations(self.get_address(), self.get_bytes_total(), self.mouseOffs)
+        annotations = self.fm.on_get_annotations(self.get_address(), self.get_pixels_total(), self.mouseOffs)
         if annotations:
             self.render_annotations(qp, annotations)
 
@@ -187,15 +204,15 @@ class PixelWidget(QWidget):
     def render_image(self, cursor=True):
         size = self.size()
         self.maxPixelsTotal = self.maxPixelsPerLine * (size.height() / self.pixelSize)
-        self.buffers = self.bh.get_buffers(self.base + self.offs, self.maxPixelsTotal)       
-        self.numbytes = self.maxPixelsTotal
+        self.buffers = self.bh.get_buffers(self.base + self.offs, self.get_pixels_total())       
         img = QImage(self.maxPixelsPerLine, size.height() / self.pixelSize, QImage.Format_RGB32)
         addr = self.base + self.offs
-        pixels = self.fm.render_img(self.buffers, addr, self.mouseOffs)
+        pixels = self.fm.on_process_buffer(self.buffers, addr, self.get_pixels_total(), self.mouseOffs)
 
         x = y = 0
-        # transparacy effect for unmapped bytes
+        # transparency effect for unmapped bytes
         transparency_dark = [qRgb(0x2F,0x4F,0x4F), qRgb(0x00,0x00,0x00)]
+        transparency_err = [qRgb(0x7F,0x00,0x00), qRgb(0x33,0x00,0x00)]
         for mapped, pix in pixels:
             if not mapped:
                 if pix is None:
@@ -204,6 +221,14 @@ class PixelWidget(QWidget):
             x = (x + 1) % self.maxPixelsPerLine
             if not x:
                 y = y + 1
+
+        if len(pixels) != self.get_pixels_total():
+            for i in xrange(self.get_pixels_total()-len(pixels)):
+                pix = transparency_err[(x&2 != 0) ^ (y&2 != 0)]
+                img.setPixel(x, y, pix)
+                x = (x + 1) % self.maxPixelsPerLine
+                if not x:
+                    y = y + 1
 
         if cursor and self.fm.highlight_cursor:
             p = QPoint(self.get_elem_x(), self.get_elem_y())
@@ -248,7 +273,7 @@ class PixelWidget(QWidget):
             offs_y += 2*base_y + 5
         return
 
-    def filter_request_update(self, ea=None, center=True):
+    def on_filter_request_update(self, ea=None, center=True):
         if not ea:
             self.repaint()
         else:
@@ -340,7 +365,7 @@ class PixelWidget(QWidget):
         
     def mousePressEvent(self, event):
         self.old_mouse_y = event.pos().y()
-        self.fm.on_mb_click(event.button(), self.get_address(), self.mouseOffs)
+        self.fm.on_mb_click(event.button(), self.get_address(), self.get_pixels_total(), self.mouseOffs)
 
     def mouseReleaseEvent(self, event):
         if self.get_sync_state():
@@ -363,7 +388,8 @@ class PixelWidget(QWidget):
 
         # width            
         elif self.key == Qt.Key_X:
-            self.set_width_delta(delta)
+            if not self.lock_width:
+                self.set_width_delta(delta)
 
         # offset (fine)
         elif self.key == Qt.Key_Shift:
@@ -375,9 +401,10 @@ class PixelWidget(QWidget):
                 self.setFocus()
 
         elif self.key == Qt.Key_H:
-            less = delta < 0
-            w = -16 if less else 16
-            self.set_width((self.get_width() & 0xFFFFFFF0) + w)
+            if not self.lock_width:
+                less = delta < 0
+                w = -16 if less else 16
+                self.set_width((self.get_width() & 0xFFFFFFF0) + w)
 
         # offset (coarse)
         else:
@@ -399,7 +426,7 @@ class PixelWidget(QWidget):
             self._update_mouse_coords(event.pos())
             self.mouseOffs = self._get_offs_by_pos(event.pos())
 
-            self.setToolTip(self.fm.get_tooltip(self.get_address(), self.mouseOffs))
+            self.setToolTip(self.fm.on_get_tooltip(self.get_address(), self.get_pixels_total(), self.mouseOffs))
 
         # zoom
         elif self.key == Qt.Key_Control:
@@ -407,12 +434,14 @@ class PixelWidget(QWidget):
 
         # width
         elif self.key == Qt.Key_X:
-            self.set_width_delta(-1 if y > self.old_mouse_y else 1)
+            if not self.lock_width:
+                self.set_width_delta(-1 if y > self.old_mouse_y else 1)
 
         elif self.key == Qt.Key_H:
-            less = y > self.old_mouse_y
-            delta = -16 if less else 16
-            self.set_width((self.get_width() & 0xFFFFFFF0) + delta)
+            if not self.lock_width:
+                less = y > self.old_mouse_y
+                delta = -16 if less else 16
+                self.set_width((self.get_width() & 0xFFFFFFF0) + delta)
 
         # scrolling (offset)
         elif y != self.old_mouse_y:
@@ -440,7 +469,17 @@ class PixelWidget(QWidget):
         if self.fm:
             self.fm.on_deactivate()
         self.fm = filter
-        self.fm.on_activate(idx, self)
+        """load filter config"""
+        self.set_sync_state(self.fm.sync)
+        self.set_width(self.fm.width)
+        self.lock_width = self.fm.lock_width
+        self.lock_sync = self.fm.lock_sync
+        self.show_address_range = self.fm.show_address_range
+        self.set_zoom(self.fm.zoom)
+        self.statechanged.emit()
+        """load filter config end"""
+        
+        self.fm.on_activate(idx)
         self.repaint()
 
     def set_addr(self, ea):
@@ -452,13 +491,16 @@ class PixelWidget(QWidget):
     def get_zoom(self):
         return self.pixelSize
 
+    def set_zoom(self, zoom):
+        self.pixelSize = zoom
+
+    def set_zoom_delta(self, dzoom):
+        self.set_zoom(max(1, self.pixelSize + dzoom))
+        return
+
     def get_width(self):
         return self.maxPixelsPerLine
 
-    # return total number of bytes in current view
-    def get_bytes_total(self):
-        return self.numbytes
-    
     def get_pixels_total(self):
         return self.maxPixelsTotal
 
@@ -477,9 +519,6 @@ class PixelWidget(QWidget):
             y = offs / (self.get_width())
             return (x, y)
         return None
-
-    def set_zoom_delta(self, dzoom):
-        self.pixelSize = max(1, self.pixelSize + dzoom)
 
     def set_width(self, width):
         self.maxPixelsPerLine = max(1, width)
@@ -538,7 +577,7 @@ class IDACyberForm(PluginForm):
 
         self.__clink__ = ida_kernwin.plgform_new()
         self.title = None
-        self.filterlist = self._load_filters()
+        self.filterlist = None
         self.pw = None
         self.windowidx = 0
                 
@@ -548,9 +587,9 @@ class IDACyberForm(PluginForm):
             self.pw.get_cursor_address(),
             self.pw.get_zoom(),
             self.pw.get_width(),
-            self.pw.get_bytes_total()))
+            self.pw.get_pixels_total()))
 
-    def _load_filters(self):
+    def _load_filters(self, pw):
         filterdir = idadir('plugins/cyber')
         sys.path.append(filterdir)
         filters = []
@@ -558,12 +597,12 @@ class IDACyberForm(PluginForm):
             if entry.lower().endswith('.py') and entry.lower() != '__init__.py':
                 mod = os.path.splitext(entry)[0]
                 filter = __import__(mod, globals(), locals(), [], 0)
-                if filter.FILTER_INIT():
-                    filters.append((filter, filter.FILTER_ENTRY()))
+                filters.append((filter, filter.FILTER_INIT(pw)))
         return filters
 
     def _unload_filters(self):
         for filter, obj in self.filterlist:
+            obj.on_deactivate()
             filter.FILTER_EXIT()
 
     def _change_screen_ea(self):
@@ -601,24 +640,11 @@ class IDACyberForm(PluginForm):
         hl2 = QtWidgets.QHBoxLayout()
         hl3 = QtWidgets.QHBoxLayout()
         hl4 = QtWidgets.QHBoxLayout()
-        
-        self.pw = PixelWidget(self.parent, IDACyberForm.idbh)
-        self.pw.setFocusPolicy(Qt.StrongFocus | Qt.WheelFocus)
-        self.pw.statechanged.connect(self._update_status_text)
-        self.pw.set_filter(self.filterlist[0][1], 0)
-        self.pw.set_addr(ScreenEA())
 
-        vl.addWidget(self.pw)
 
         flt = QLabel()  
         flt.setText('Filter:')
         hl.addWidget(flt)
-
-        self.filterChoser = QComboBox()
-        self.filterChoser.addItems([obj.name for filter, obj in self.filterlist])
-        self.filterChoser.currentIndexChanged.connect(self._select_filter)
-        hl.addWidget(self.filterChoser)
-        hl.addStretch(1)
 
         self.cb = QCheckBox('Sync')
         self.cb.setChecked(True)
@@ -628,6 +654,23 @@ class IDACyberForm(PluginForm):
         self.status = QLabel()
         self.status.setText('Cyber, cyber!')
         hl4.addWidget(self.status)
+
+        self.pw = PixelWidget(self.parent, IDACyberForm.idbh)
+        self.pw.setFocusPolicy(Qt.StrongFocus | Qt.WheelFocus)
+        self.pw.statechanged.connect(self._update_status_text)
+
+        self.filterlist = self._load_filters(self.pw)
+
+        self.pw.set_filter(self.filterlist[0][1], 0)
+        self.pw.set_addr(ScreenEA())
+
+        self.filterChoser = QComboBox()
+        self.filterChoser.addItems([obj.name for filter, obj in self.filterlist])
+        self.filterChoser.currentIndexChanged.connect(self._select_filter)
+        hl.addWidget(self.filterChoser)
+        hl.addStretch(1)
+
+        vl.addWidget(self.pw)
 
         vl.addLayout(hl)
         vl.addLayout(hl2)
@@ -639,7 +682,6 @@ class IDACyberForm(PluginForm):
                 IDACyberForm.hook.new_ea.connect(self._change_screen_ea)
 
     def OnClose(self, options):
-        options = PluginForm.FORM_SAVE | PluginForm.FORM_NO_CONTEXT
         IDACyberForm.windows.remove(self.windowidx)
         self._unload_filters()
         if not len(IDACyberForm.windows):
@@ -657,15 +699,18 @@ class IDACyberPlugin(plugin_t):
 
     def init(self):
         global banner
+        self.form = None
+        self.options = PluginForm.WOPN_MENU|PluginForm.WOPN_RESTORE|PluginForm.FORM_SAVE|PluginForm.WOPN_PERSIST|PluginForm.WCLS_CLOSE_LATER
         msg("%s" % banner)
         return PLUGIN_KEEP
 
     def run(self, arg):
-        form = IDACyberForm()
-        form.Show(None, options = PluginForm.FORM_MENU|PluginForm.FORM_RESTORE|PluginForm.FORM_PERSIST)
+        self.form = IDACyberForm()
+        self.form.Show(None, options = self.options)
 
     def term(self):
-        pass
+        if self.form is not None:
+            self.form.Close(options = self.options)
 
 # -----------------------------------------------------------------------
 

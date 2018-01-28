@@ -17,17 +17,17 @@ class Xor(ColorFilter):
         if key:
             self.key = key & 0xFF
 
-    def on_activate(self, idx, pw):
+    def on_activate(self, idx):
         msg("%s filter:\n  * RMB: pick XOR key from rendered image.\n  * MMB: assign XOR key." % Xor.name)
 
-    def on_mb_click(self, button, addr, mouse_offs):
+    def on_mb_click(self, button, addr, size, mouse_offs):
         if button == Qt.MiddleButton:
             self._set_xor_key()
         elif button == Qt.RightButton:
             key = get_byte(addr + mouse_offs)
             self._set_xor_key(key)
 
-    def render_img(self, buffers, addr, mouse_offs):
+    def on_process_buffer(self, buffers, addr, size, mouse_offs):
         colors = []
         for mapped, buf in buffers:
             if mapped:  
@@ -39,14 +39,11 @@ class Xor(ColorFilter):
                     colors.append((False, None))
         return colors
 
-    def get_tooltip(self, addr, mouse_offs):
+    def on_get_tooltip(self, addr, size, mouse_offs):
         return "%X:\nCursor 0x%02X\nKey: 0x%02X" % (addr + mouse_offs, get_byte(addr + mouse_offs), self.key)
 
-def FILTER_ENTRY():
+def FILTER_INIT(pw):
     return Xor()
-
-def FILTER_INIT():
-    return True
     
 def FILTER_EXIT():
     return

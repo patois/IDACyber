@@ -17,7 +17,7 @@ class xrefsto(ColorFilter):
         return count
         
 
-    def render_img(self, buffers, addr, mouse_offs):
+    def on_process_buffer(self, buffers, addr, size, mouse_offs):
         colors = []
         goffs = 0
         for mapped, buf in buffers:
@@ -48,14 +48,11 @@ class xrefsto(ColorFilter):
         g = 255 - b - r
         return r, g, b
 
-    def get_tooltip(self, addr, mouse_offs):
+    def get_tooltip(self, addr, size, mouse_offs):
         return "%d xrefs" % self.xrefcount(addr + mouse_offs)
     
-def FILTER_ENTRY():
+def FILTER_INIT(pw):
     return xrefsto()
-
-def FILTER_INIT():
-    return True
     
 def FILTER_EXIT():
     return

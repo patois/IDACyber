@@ -17,14 +17,14 @@ class Crawl(ColorFilter):
         self.switch = 1
         self.mode = ["Item length", "Functions"]
 
-    def on_mb_click(self, button, addr, mouse_offs):
+    def on_mb_click(self, button, addr, size, mouse_offs):
         if button == Qt.MiddleButton:
             pass
         elif button == Qt.RightButton:
             self.switch ^= 1
             msg('Highlighting %s\n' % self.mode[self.switch])
 
-    def get_tooltip(self, addr, mouse_offs):
+    def on_get_tooltip(self, addr, size, mouse_offs):
         tooltip = '%X: ' % (addr + mouse_offs)
 
         if self.switch == 0:
@@ -35,7 +35,7 @@ class Crawl(ColorFilter):
                 tooltip += '%s' % get_func_name(f.startEA)
         return tooltip
 
-    def render_img(self, buffers, addr, mouse_offs):
+    def on_process_buffer(self, buffers, addr, size, mouse_offs):
         colors = []
         head = ida_idaapi.BADADDR
         tail = ida_idaapi.BADADDR
@@ -71,11 +71,8 @@ class Crawl(ColorFilter):
             goffs += len(buf)
         return colors
 
-def FILTER_ENTRY():
+def FILTER_INIT(pw):
     return Crawl()
-
-def FILTER_INIT():
-    return True
     
 def FILTER_EXIT():
     return

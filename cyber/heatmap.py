@@ -6,7 +6,7 @@ class Heatmap(ColorFilter):
     name = "Heatmap"
     help = "Heatmap"
 
-    def render_img(self, buffers, addr, mouse_offs):
+    def on_process_buffer(self, buffers, addr, size, mouse_offs):
         colors = []
         for mapped, buf in buffers:
             if mapped:                
@@ -19,7 +19,7 @@ class Heatmap(ColorFilter):
                     colors.append((False, None))
         return colors
 
-    def get_tooltip(self, addr, mouse_offs):
+    def on_get_tooltip(self, addr, size, mouse_offs):
         return "0x%02X" % get_byte(addr + mouse_offs)
 
     # code taken from
@@ -31,12 +31,8 @@ class Heatmap(ColorFilter):
         g = 255 - b - r
         return r, g, b
 
-    
-def FILTER_ENTRY():
+def FILTER_INIT(pw):
     return Heatmap()
-
-def FILTER_INIT():
-    return True
     
 def FILTER_EXIT():
     return

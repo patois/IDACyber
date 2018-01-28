@@ -14,7 +14,7 @@ class Annotations(ColorFilter):
         self.colormap = [0x343d46, 0x4f5b66, 0x65737e, 0xa7adba, 0xc0c5ce]
         self.red = [0xCC3700, 0xFF4500]
 
-    def render_img(self, buffers, addr, mouse_offs):
+    def on_process_buffer(self, buffers, addr, size, mouse_offs):
         colors = []
         goffs = 0
 
@@ -43,7 +43,7 @@ class Annotations(ColorFilter):
 
         return colors
 
-    def get_annotations(self, address, size, mouse_offs):
+    def on_get_annotations(self, address, size, mouse_offs):
         item_ea = get_item_head(address + mouse_offs)
         cursor_ea = address + mouse_offs
         name = get_name(item_ea)
@@ -59,11 +59,8 @@ class Annotations(ColorFilter):
         ]
         return ann
 
-def FILTER_ENTRY():
+def FILTER_INIT(pw):
     return Annotations()
-
-def FILTER_INIT():
-    return True
     
 def FILTER_EXIT():
     return

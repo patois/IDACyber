@@ -11,6 +11,8 @@ class VROP(ColorFilter):
     name = "VisualROP"
     highlight_cursor = False
     help =  "Highlight return instructions"
+    zoom = 5
+    width = 32
 
     def __init__(self):
         # "Dark Hope Color Palette" http://www.color-hex.com/color-palette/46221
@@ -27,7 +29,7 @@ class VROP(ColorFilter):
                 return True
         return False
 
-    def render_img(self, buffers, addr, mouse_offs):
+    def on_process_buffer(self, buffers, addr,size, mouse_offs):
         colors = []
         goffs = 0
         self.ret_locs = []
@@ -54,7 +56,7 @@ class VROP(ColorFilter):
 
         return colors
 
-    def get_annotations(self, address, size, mouse_offs):
+    def on_get_annotations(self, address, size, mouse_offs):
         ann = [(None, None, "Return instructions:", self.colormap[-1])]
         i = 0
         for x in self.ret_locs:
@@ -65,11 +67,8 @@ class VROP(ColorFilter):
                 break
         return ann
 
-def FILTER_ENTRY():
+def FILTER_INIT(pw):
     return VROP()
-
-def FILTER_INIT():
-    return True
     
 def FILTER_EXIT():
     return

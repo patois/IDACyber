@@ -25,11 +25,11 @@ class xpression(ColorFilter):
                 warning("Invalid expression!")
                 continue
 
-    def on_mb_click(self, button, addr, mouse_offs):
+    def on_mb_click(self, button, addr, size, mouse_offs):
         if button == Qt.RightButton:
             self._set_user_expr()
 
-    def render_img(self, buffers, addr, mouse_offs):
+    def on_process_buffer(self, buffers, addr, size, mouse_offs):
         colors = []
         for mapped, buf in buffers:
             if mapped:
@@ -42,11 +42,8 @@ class xpression(ColorFilter):
                     colors.append((False, None))
         return colors
 
-def FILTER_ENTRY():
+def FILTER_INIT(pw):
     return xpression()
-
-def FILTER_INIT():
-    return True
     
 def FILTER_EXIT():
     return

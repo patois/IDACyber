@@ -6,7 +6,7 @@ class GameBoy(ColorFilter):
     name = "GameBoy"
     help =  "Grayscale"
 
-    def render_img(self, buffers, addr, mouse_offs):
+    def on_process_buffer(self, buffers, addr, size, mouse_offs):
         #Bit    7  6  5  4  3  2  1  0
         #Data   R  R  R  G  G  G  B  B
         colors = []
@@ -24,14 +24,11 @@ class GameBoy(ColorFilter):
                     colors.append((False, None))
         return colors
 
-    def get_tooltip(self, addr, mouse_offs):
+    def on_get_tooltip(self, addr, size, mouse_offs):
         return "%X: item size %d" % (addr, get_item_size(addr + mouse_offs))
     
-def FILTER_ENTRY():
+def FILTER_INIT(pw):
     return GameBoy()
-
-def FILTER_INIT():
-    return True
     
 def FILTER_EXIT():
     return

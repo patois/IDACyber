@@ -15,11 +15,11 @@ class Ascii(ColorFilter):
         if res is not None:
             self.threshold = res
 
-    def on_mb_click(self, button, addr, mouse_offs):
+    def on_mb_click(self, button, addr, size, mouse_offs):
         if button == Qt.RightButton:
             self._set_threshold()
 
-    def render_img(self, buffers, addr, mouse_offs):
+    def on_process_buffer(self, buffers, addr, size, mouse_offs):
         colors = []
 
         for mapped, buf in buffers:
@@ -64,11 +64,8 @@ class Ascii(ColorFilter):
 
         return colors
     
-def FILTER_ENTRY():
+def FILTER_INIT(pw):
     return Ascii()
-
-def FILTER_INIT():
-    return True
     
 def FILTER_EXIT():
     return
