@@ -15,12 +15,14 @@ class VROP(ColorFilter):
     zoom = 5
     width = 32
 
-    def __init__(self):
+    def __init__(self, pw):
         # "Dark Hope Color Palette" http://www.color-hex.com/color-palette/46221
         self.colormap = [0x00321c, 0x004c2b, 0x006539, 0x007f47, 0x009856]
         self.ptrcol = 0xb2b2b2 #0xcccccc
         self.ret_locs = []
         self.threshold = 9
+        self.pw = pw
+        return
 
     def _is_ret(self, x):
         if can_decode(x):
@@ -30,12 +32,34 @@ class VROP(ColorFilter):
                 return True
         return False
 
+    def _apply_fx(self, color, idx, width, total):
+        col = color
+        rows_total = total / width
+        maxrows = rows_total / 4
+        cur_row = idx / width
+        shadow_blocksize = maxrows*width
+        maxdarkness = 70
+
+        if cur_row*width < (shadow_blocksize):
+            factor = (maxrows-cur_row)
+            darkness = factor*maxdarkness/float(maxrows)
+            col = QColor(col).darker(100+darkness).rgb()
+        elif cur_row*width >= rows_total*width-shadow_blocksize:
+            factor = (maxrows-(rows_total-cur_row))
+            darkness = factor*maxdarkness/float(maxrows)
+            col = QColor(col).darker(100+darkness).rgb()
+
+        
+        return col
+
     def on_process_buffer(self, buffers, addr,size, mouse_offs):
         colors = []
         goffs = 0
         self.ret_locs = []
         nret = 0
         colidx = 0
+        width = self.pw.get_width()
+        total = self.pw.get_pixels_total()
 
         for mapped, buf in buffers:
             if mapped:        
@@ -49,7 +73,7 @@ class VROP(ColorFilter):
                             col = QColor(col).lighter(140).rgb()"""
                     else:
                         col = self.colormap[c/(0xff/(len(self.colormap)-1))]
-                    colors.append((True, col))
+                    colors.append((True, self._apply_fx(col, colidx, width, total)))
                     colidx += 1
             else:
                 for i in xrange(len(buf)):
@@ -99,7 +123,7 @@ class VROP(ColorFilter):
         return ann
 
 def FILTER_INIT(pw):
-    return VROP()
+    return VROP(pw)
     
 def FILTER_EXIT():
     return

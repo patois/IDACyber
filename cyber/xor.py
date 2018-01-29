@@ -9,13 +9,15 @@ class Xor(ColorFilter):
     help = "Apply 8-bit XOR operation.\n\nMMB: Set XOR key.\nRMB: Pick XOR key."
 
     def __init__(self):
-        self.key = 23
+        self.key = 0x90
+        return
 
     def _set_xor_key(self, key=None):
         if key is None:
             key = ask_long(self.key, "Specify 8-Bit XOR key")
         if key:
             self.key = key & 0xFF
+        return
 
     def on_activate(self, idx):
         msg("%s filter:\n  * RMB: pick XOR key from rendered image.\n  * MMB: assign XOR key." % Xor.name)
@@ -26,6 +28,7 @@ class Xor(ColorFilter):
         elif button == Qt.RightButton:
             key = get_byte(addr + mouse_offs)
             self._set_xor_key(key)
+        return
 
     def on_process_buffer(self, buffers, addr, size, mouse_offs):
         colors = []

@@ -204,6 +204,7 @@ class Hubert(ColorFilter):
         self.idx_frame = 0
         self.timer = None
         self.jump_fw = True
+        return
 
     def _timer_cb(self):
         global hubert

@@ -111,6 +111,7 @@ class Dbg(ColorFilter):
         self.palette = [0x1d59eb, 0x3466c0, 0x0ea7ac, 0x22b592, 0xebaf1d]
         self.exec_col = 0x59eb1d
         self.hook = None
+        return
 
     def on_activate(self, idx):
         if self.hook is not None:
@@ -125,6 +126,7 @@ class Dbg(ColorFilter):
             self.hook.disable_timer()
             self.hook.unhook()
             self.hook = None
+        return
 
     def on_mb_click(self, button, addr, size, mouse_offs):
         if button == Qt.RightButton:

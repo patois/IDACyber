@@ -12,6 +12,7 @@ class Regex(ColorFilter):
     def __init__(self):
         self.pattern = ''
         self.regex = None
+        return
 
     def _set_regex(self):
         while True:
@@ -28,10 +29,12 @@ class Regex(ColorFilter):
             except:
                 warning("Invalid expression!")
                 continue
+        return
 
     def on_mb_click(self, button, addr, size, mouse_offs):
         if button == Qt.RightButton:
             self._set_regex()
+        return
 
     def on_process_buffer(self, buffers, addr, size, mouse_offs):
         colors = []

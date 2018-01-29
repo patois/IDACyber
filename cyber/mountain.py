@@ -11,9 +11,11 @@ class Mountain(ColorFilter):
 
     def on_activate(self, idx):
         msg('%s\n' % Mountain.help)
+        return
 
     def on_mb_click(self, button, addr, size, mouse_offs):
         msg('click at %X\n' % (addr + mouse_offs))
+        return
 
     def _is_string(self, ea):
         head = get_item_head(ea)
