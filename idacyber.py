@@ -323,7 +323,7 @@ class PixelWidget(QWidget):
             info(hlp+"\n\n")
             self.key = None # workaround fixme
         elif self.key == Qt.Key_F12:
-            img = self.render_image(cursor = False)
+            img = self.render_image(cursor = False).scaled(img.width()*self.pixelSize, img.height()*self.pixelSize, Qt.KeepAspectRatio, Qt.FastTransformation)
             done = False
             i = 0
             while not done:

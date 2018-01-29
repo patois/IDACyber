@@ -131,12 +131,14 @@ class VROP(ColorFilter):
                         # check top, bottom, left, right borders
                         if realpxl_idx > 0 and realpxl_idx < total and realpxl_idx/width == targetpxl_idx/width:
                             mapped, col = colors[realpxl_idx]
-                            # uncomment for "debugging"
-                            # col = 0xFF0000
-                            flicker = 40
-                            if self.torch:
-                                flicker = self.flicker_values[self.flicker_idx]*4
-                            colors[realpxl_idx] = (mapped, QColor(col).lighter(max(100, 140-brightness+flicker)).rgb())
+
+                            if mapped:
+                                # uncomment for "debugging"
+                                # col = 0xFF0000
+                                flicker = 40
+                                if self.torch:
+                                    flicker = self.flicker_values[self.flicker_idx]*4
+                                colors[realpxl_idx] = (mapped, QColor(col).lighter(max(100, 140-brightness+flicker)).rgb())
                 cur_item_idx += 1
 
 
