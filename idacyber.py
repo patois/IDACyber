@@ -158,6 +158,7 @@ class PixelWidget(QWidget):
         self.elemX = 0
         self.elemY = 0
         self.rect_x = 0
+        self.prev_img = 0
         self.lock_width = False
         self.lock_sync = False
         self.link_pixel = True
@@ -191,11 +192,14 @@ class PixelWidget(QWidget):
         # use colorfilter to render image
         img = self.render_image()
 
-        # draw image
-        if img is not None:    
-            qp.drawImage(QRect(QPoint(self.rect_x, 0), 
-                QPoint(self.rect_x + self.maxPixelsPerLine * self.pixelSize, (self.get_pixels_total() / self.maxPixelsPerLine) * self.pixelSize)),
-                img)
+        if img:
+            this_img = img.cacheKey
+            if this_img is not self.prev_img:
+                # draw image
+                qp.drawImage(QRect(QPoint(self.rect_x, 0), 
+                    QPoint(self.rect_x + self.maxPixelsPerLine * self.pixelSize, (self.get_pixels_total() / self.maxPixelsPerLine) * self.pixelSize)),
+                    img)
+                self.prev_img = this_img
 
         # get and draw annotations and pointers
         annotations = self.fm.on_get_annotations(self.get_address(), self.get_pixels_total(), self.mouseOffs)
@@ -323,7 +327,8 @@ class PixelWidget(QWidget):
             info(hlp+"\n\n")
             self.key = None # workaround fixme
         elif self.key == Qt.Key_F12:
-            img = self.render_image(cursor = False).scaled(img.width()*self.pixelSize, img.height()*self.pixelSize, Qt.KeepAspectRatio, Qt.FastTransformation)
+            img = self.render_image(cursor = False)
+            img = img.scaled(img.width()*self.pixelSize, img.height()*self.pixelSize, Qt.KeepAspectRatio, Qt.FastTransformation)
             done = False
             i = 0
             while not done:
