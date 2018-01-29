@@ -1,6 +1,6 @@
 from PyQt5.QtGui import qRgb
 from idacyber import ColorFilter
-from ida_kernwin import asklong
+from ida_kernwin import msg
 from collections import Counter
 
 class AutoXor(ColorFilter):
@@ -11,32 +11,43 @@ class AutoXor(ColorFilter):
         self.occurence = 0
         self.size = 0
 
-    def _update_key(self, buf):
-        if buf:
-            self.size = len(buf)            
-            c = Counter(buf.replace("\x00",""))
+    def _update_key(self, buffers):
+        if buffers:
+            tmp = ''
+            for mapped, buf in buffers:
+                tmp += buf if mapped else ''
+            self.size = len(tmp)            
+            c = Counter(tmp.replace("\x00",""))
             mc = c.most_common(1)
             if len(mc):
                 cur, self.occurence = mc[0]
                 cur = ord(cur)
                 if cur != self.key:
-                    print "Key %02Xh - %d/%d (%.2f%%)" % (cur, self.occurence, self.size, float(self.occurence)/float(self.size)*100.0)
+                    msg('Key %02Xh - %d/%d (%.2f%%)\n' % (cur, self.occurence, self.size, float(self.occurence)/float(self.size)*100.0))
                     self.key = cur
 
-    def render_img(self, buf, addr, mouse_offs):
+    def on_process_buffer(self, buffers, addr, size, mouse_offs):
         colors = []
-        self._update_key(buf)
-        for c in buf:
-            c = (ord(c) ^ self.key) & 0xFF
-            colors.append(qRgb(c, 0, c))
+        self._update_key(buffers)
+        for mapped, buf in buffers:
+            if mapped:
+                for c in buf:
+                    c = (ord(c) ^ self.key) & 0xFF
+                    colors.append((True, qRgb(c, 0, c)))
+            else:
+                for i in xrange(len(buf)):
+                    colors.append((False, None))
         return colors
 
 
-    def get_tooltip(self, addr, mouse_offs):
+    def on_get_tooltip(self, addr, size, mouse_offs):
         result = None
         if self.size:
             result = "Key %02Xh - %d/%d (%.2f%%)" % (self.key, self.occurence, self.size, float(self.occurence)/float(self.size)*100.0)
         return result
 
-def FILTER_ENTRY():
+def FILTER_INIT(pw):
     return AutoXor()
+    
+def FILTER_EXIT():
+    return

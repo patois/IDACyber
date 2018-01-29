@@ -1,7 +1,7 @@
 from PyQt5.QtGui import qRgb
 from PyQt5.QtCore import Qt
 from idacyber import ColorFilter
-from ida_kernwin import askstr, warning
+from ida_kernwin import ask_str, warning
 
 class xpression(ColorFilter):
     name = "expression"
@@ -12,7 +12,7 @@ class xpression(ColorFilter):
 
     def _set_user_expr(self):
         while True:
-            xpr = askstr(0, self.xpr, "Please enter expression")
+            xpr = ask_str(self.xpr, 0, "Please enter expression")
             if xpr is None:
                 break
             
@@ -25,19 +25,25 @@ class xpression(ColorFilter):
                 warning("Invalid expression!")
                 continue
 
-
-
-    def on_mb_click(self, button, addr, mouse_offs):
+    def on_mb_click(self, button, addr, size, mouse_offs):
         if button == Qt.RightButton:
             self._set_user_expr()
 
-    def render_img(self, buf, addr, mouse_offs):
+    def on_process_buffer(self, buffers, addr, size, mouse_offs):
         colors = []
-        for c in buf:
-            r = g = b = ord(c) & 0xFF
-            r, g, b = eval(self.xpr)
-            colors.append(qRgb(r&0xFF, g&0xFF, b&0xFF))
+        for mapped, buf in buffers:
+            if mapped:
+                for c in buf:
+                    r = g = b = ord(c) & 0xFF
+                    r, g, b = eval(self.xpr)
+                    colors.append((True, qRgb(r&0xFF, g&0xFF, b&0xFF)))
+            else:
+                for i in xrange(len(buf)):
+                    colors.append((False, None))
         return colors
 
-def FILTER_ENTRY():
+def FILTER_INIT(pw):
     return xpression()
+    
+def FILTER_EXIT():
+    return
