@@ -23,14 +23,14 @@ banner = """
 #   TODO:
 #   * refactor
 #   * colorfilter: improve/refactor callbacks (do not process gaps)?
-#   * colorfilter: improve arrows
+#   * colorfilter: improve arrows/pointers
 #   * colorfilter: finish implementing filter config options (controls behavior of graph etc)
 #   * fix keyboard controls bug
 #   * optimize redrawing?
 #   * load filters using "require"
 #   * add grid?
 #   * use Qt scaling etc?
-#   * store current settings in netnode
+#   * store current settings in netnode?
 
 class ColorFilter():
     name = None
@@ -42,6 +42,8 @@ class ColorFilter():
     lock_sync = False
     show_address_range = True
     zoom = 3
+    link_pixel = True
+
 
     def __init__(self, pw=None):
         pass
@@ -158,6 +160,7 @@ class PixelWidget(QWidget):
         self.rect_x = 0
         self.lock_width = False
         self.lock_sync = False
+        self.link_pixel = True
         
         self.setMouseTracking(True)        
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -375,7 +378,7 @@ class PixelWidget(QWidget):
             self.statechanged.emit()
 
     def mouseDoubleClickEvent(self, event):
-        if event.button() == Qt.LeftButton:
+        if self.link_pixel and event.button() == Qt.LeftButton:
             addr = self.base + self.offs + self._get_offs_by_pos(event.pos())
             jumpto(addr)
 
@@ -476,6 +479,7 @@ class PixelWidget(QWidget):
         self.lock_sync = self.fm.lock_sync
         self.show_address_range = self.fm.show_address_range
         self.set_zoom(self.fm.zoom)
+        self.link_pixel = self.fm.link_pixel
         self.statechanged.emit()
         """load filter config end"""
         
@@ -582,12 +586,25 @@ class IDACyberForm(PluginForm):
         self.windowidx = 0
                 
     def _update_status_text(self):
-        self.status.setText('Adress %Xh | Cursor %Xh | Zoom %d | Width %d | Bytes %d' % (
-            self.pw.get_address(),
-            self.pw.get_cursor_address(),
-            self.pw.get_zoom(),
-            self.pw.get_width(),
-            self.pw.get_pixels_total()))
+        lbl_address = 'Address '
+        lbl_cursor = 'Cursor '
+        lbl_zoom = 'Zoom '
+        lbl_pixel = 'Pixels '
+        
+        if self.pw.link_pixel:
+            val_address = '%Xh' % self.pw.get_address()
+            val_cursor = '%Xh' % self.pw.get_cursor_address()
+        else:
+            val_address = val_cursor = 'N/A'
+        width = self.pw.get_width()
+        val_zoom = '%d:1 ' % self.pw.get_zoom()
+        val_pixel = '%dx%d ' % (width, self.pw.get_pixels_total()/width)
+
+        status_text = ' | '.join((lbl_address + val_address,
+            lbl_cursor + val_cursor,
+            lbl_pixel + val_pixel,
+            lbl_zoom + val_zoom))
+        self.status.setText(status_text)
 
     def _load_filters(self, pw):
         filterdir = idadir('plugins/cyber')
