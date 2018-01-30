@@ -26,8 +26,11 @@ class VROP(ColorFilter):
         self.pw = pw
         self.torch = False
         self.timer = None
-        self.flicker_values = list(range(0,11,8)+range(11,0,-8))
-        self.flicker_idx = 0
+        self.numframes = 4
+        self.maxbrightness = 100
+        self.factor = self.maxbrightness/self.numframes
+        self.flicker_values = list(range(1, self.numframes+1)+range(self.numframes-1,0,-1))
+        self.flicker_idx = self.flicker_values[self.numframes-1]
         self.ms = 200
 
         if self.torch:
@@ -76,6 +79,7 @@ class VROP(ColorFilter):
     def on_mb_click(self, button, addr, size, mouse_offs):
         if button == Qt.RightButton:
             if self.torch:
+                self.flicker_idx = self.flicker_values[self.numframes/2]
                 if self.timer:
                     unregister_timer(self.timer)
                     self.timer = None
@@ -122,7 +126,6 @@ class VROP(ColorFilter):
             cur_item_idx = 0
             for i in xrange(offs, end):
                 _, colidx, _ = self.ret_locs[i]
-                brightness = 0
                 for row in xrange(-4, 5):
                     targetpxl_idx = colidx+(width*row)
                     for neighbour in xrange(-4, 5):
@@ -135,10 +138,10 @@ class VROP(ColorFilter):
                             if mapped:
                                 # uncomment for "debugging"
                                 # col = 0xFF0000
-                                flicker = 40
+                                flicker = self.maxbrightness
                                 if self.torch:
-                                    flicker = self.flicker_values[self.flicker_idx]*4
-                                colors[realpxl_idx] = (mapped, QColor(col).lighter(max(100, 140-brightness+flicker)).rgb())
+                                    flicker = self.flicker_values[self.flicker_idx]*self.factor
+                                colors[realpxl_idx] = (mapped, QColor(col).lighter(max(100, 100-brightness+flicker)).rgb())
                 cur_item_idx += 1
 
 

@@ -22,7 +22,6 @@ banner = """
 
 #   TODO:
 #   * refactor
-#   * colorfilter: improve/refactor callbacks (do not process gaps)?
 #   * colorfilter: improve arrows/pointers
 #   * colorfilter: finish implementing filter config options (controls behavior of graph etc)
 #   * fix keyboard controls bug
@@ -31,6 +30,7 @@ banner = """
 #   * add grid?
 #   * use Qt scaling etc?
 #   * store current settings in netnode?
+#   * review signal handlers
 
 class ColorFilter():
     name = None
@@ -158,7 +158,6 @@ class PixelWidget(QWidget):
         self.elemX = 0
         self.elemY = 0
         self.rect_x = 0
-        self.prev_img = 0
         self.lock_width = False
         self.lock_sync = False
         self.link_pixel = True
@@ -193,13 +192,10 @@ class PixelWidget(QWidget):
         img = self.render_image()
 
         if img:
-            this_img = img.cacheKey
-            if this_img is not self.prev_img:
-                # draw image
-                qp.drawImage(QRect(QPoint(self.rect_x, 0), 
-                    QPoint(self.rect_x + self.maxPixelsPerLine * self.pixelSize, (self.get_pixels_total() / self.maxPixelsPerLine) * self.pixelSize)),
-                    img)
-                self.prev_img = this_img
+            # draw image
+            qp.drawImage(QRect(QPoint(self.rect_x, 0), 
+                QPoint(self.rect_x + self.maxPixelsPerLine * self.pixelSize, (self.get_pixels_total() / self.maxPixelsPerLine) * self.pixelSize)),
+                img)
 
         # get and draw annotations and pointers
         annotations = self.fm.on_get_annotations(self.get_address(), self.get_pixels_total(), self.mouseOffs)
@@ -590,7 +586,7 @@ class IDACyberForm(PluginForm):
         self.pw = None
         self.windowidx = 0
                 
-    def _update_status_text(self):
+    def _update_widget(self):
         lbl_address = 'Address '
         lbl_cursor = 'Cursor '
         lbl_zoom = 'Zoom '
@@ -609,6 +605,9 @@ class IDACyberForm(PluginForm):
             lbl_cursor + val_cursor,
             lbl_pixel + val_pixel,
             lbl_zoom + val_zoom))
+        # move code to separate, new signal handler
+        self.cb.setChecked(self.pw.sync)
+        self.cb.setEnabled(not self.pw.lock_sync)
         self.status.setText(status_text)
 
     def _load_filters(self, pw):
@@ -632,7 +631,7 @@ class IDACyberForm(PluginForm):
             ea = ScreenEA()
             self.pw.set_addr(ea)
             # TODO
-            self._update_status_text()
+            self._update_widget()
 
     def _select_filter(self, idx):
         self.pw.set_filter(self.filterlist[idx][1], idx)
@@ -679,7 +678,7 @@ class IDACyberForm(PluginForm):
 
         self.pw = PixelWidget(self.parent, IDACyberForm.idbh)
         self.pw.setFocusPolicy(Qt.StrongFocus | Qt.WheelFocus)
-        self.pw.statechanged.connect(self._update_status_text)
+        self.pw.statechanged.connect(self._update_widget)
 
         self.filterlist = self._load_filters(self.pw)
 
