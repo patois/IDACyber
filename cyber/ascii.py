@@ -15,8 +15,8 @@ class Ascii(ColorFilter):
         if res is not None:
             self.threshold = res
 
-    def on_mb_click(self, button, addr, size, mouse_offs):
-        if button == Qt.RightButton:
+    def on_mb_click(self, event, addr, size, mouse_offs):
+        if event.button() == Qt.RightButton:
             self._set_threshold()
 
     def on_process_buffer(self, buffers, addr, size, mouse_offs):

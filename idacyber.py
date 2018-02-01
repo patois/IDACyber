@@ -4,8 +4,6 @@ from PyQt5.QtGui import QPainter, QColor, QFont, QPen, QPixmap, QImage, qRgb, QP
 from PyQt5.QtCore import Qt, QObject, pyqtSignal, QRect, QSize, QPoint
 from idaapi import *
 from ida_kernwin import msg
-from os import path
-import copy
 
 __author__ = 'Dennis Elser'
 
@@ -31,6 +29,12 @@ banner = """
 #   * use Qt scaling etc?
 #   * store current settings in netnode?
 #   * review signal handlers
+#   * implement feature that generates a graph of all memory content/current idb using the
+#     current color filter which is then saved/exported to disk
+#   * implement color filter: dbghook, memory read/write tracing
+#   * implement color filter: that applies a recorded trace log to a graph
+#   * implement color filter: byte histogram
+#   * implement color filter: colorize instructions/instruction groups
 
 class ColorFilter():
     name = None
@@ -57,7 +61,7 @@ class ColorFilter():
         pass
 
     """handles mouse click events"""
-    def on_mb_click(self, button, addr, size, mouse_offs):
+    def on_mb_click(self, event, addr, size, mouse_offs):
         pass
     
     """called whenever a new frame is about to be drawn"""
@@ -146,7 +150,7 @@ class PixelWidget(QWidget):
         self.pixelSize = 3
         self.maxPixelsPerLine = 64
         self.maxPixelsTotal = 0
-        self.old_mouse_y = 0
+        self.prev_mouse_y = 0
         self.key = None
         self.buffers = None
         self.offs = 0
@@ -276,6 +280,7 @@ class PixelWidget(QWidget):
             offs_y += 2*base_y + 5
         return
 
+    # functions that can be called by filters
     def on_filter_request_update(self, ea=None, center=True):
         if not ea:
             self.repaint()
@@ -289,70 +294,88 @@ class PixelWidget(QWidget):
             else:
                 self.repaint()
 
+    def on_filter_update_zoom(self, zoom):
+        self.set_zoom(zoom)
+        return
+
+    def on_filter_update_zoom_delta(self, delta):
+        self.set_zoom_delta(delta)
+        return
+    # end of functions that can be called by filters
 
     def keyPressEvent(self, event):
-        update = False
-        
         if self.key is None:
             self.key = event.key()
-        else:
-            if self.key == Qt.Key_Control:
-                if event.key() == Qt.Key_Plus:
-                    self.set_zoom_delta(1)
-                    update = True
-                elif event.key() == Qt.Key_Minus:
-                    self.set_zoom_delta(-1)
-                    update = True
-            elif self.key == Qt.Key_Shift:
-                if event.key() == Qt.Key_Plus:
-                    self.set_offset_delta(-self.get_width())
-                    update = True
-                elif event.key() == Qt.Key_Minus:
-                    self.set_offset_delta(self.get_width())
-                    update = True
+        return
 
+    def keyReleaseEvent(self, event):
+        update = False
+        key = event.key()
 
-        if self.key == Qt.Key_G:
+        shift_pressed = (event.modifiers() & Qt.ShiftModifier) != 0
+        ctrl_pressed = (event.modifiers() & Qt.ControlModifier) != 0
+
+        if key == Qt.Key_G:
             addr = AskAddr(self.base + self.offs, 'Jump to address')
             if addr is not None:
                 jumpto(addr)
-        elif self.key == Qt.Key_F2:
+
+        elif key == Qt.Key_F2:
             hlp = self.fm.help
             if hlp is None:
                 hlp = "Help unavailable"
             info(hlp+"\n\n")
-            self.key = None # workaround fixme
-        elif self.key == Qt.Key_F12:
+
+        elif key == Qt.Key_F12:
             img = self.render_image(cursor = False)
             img = img.scaled(img.width()*self.pixelSize, img.height()*self.pixelSize, Qt.KeepAspectRatio, Qt.FastTransformation)
             done = False
             i = 0
             while not done:
                 fname = 'IDACyber_%04d.bmp' % i
-                if not path.isfile(fname):
+                if not os.path.isfile(fname):
                     if img.save(fname):
                         msg('File exported to %s\n' % fname)
                     else:
                         warning('Error exporting screenshot to %s.' % fname)
-                        self.key = None # workaround fixme
                     done = True
                 i += 1
 
-        elif self.key == Qt.Key_PageDown:
+        elif key == Qt.Key_PageDown:
             self.set_offset_delta(-self.get_pixels_total())
             update = True
 
-        elif self.key == Qt.Key_PageUp:
+        elif key == Qt.Key_PageUp:
             self.set_offset_delta(self.get_pixels_total())
             update = True
 
-        elif self.key == Qt.Key_Plus:
+        elif key == Qt.Key_Plus:
             self.set_offset_delta(-1)
             update = True
 
-        elif self.key == Qt.Key_Minus:
+        elif key == Qt.Key_Minus:
             self.set_offset_delta(1)
             update = True
+
+        elif key == Qt.Key_Plus and ctrl_pressed:
+            self.set_zoom_delta(1)
+            update = True
+
+        elif key == Qt.Key_Minus and ctrl_pressed:
+            self.set_zoom_delta(-1)
+            update = True
+
+        elif key == Qt.Key_Plus and shift_pressed:
+            self.set_offset_delta(-self.get_width())
+            update = True
+
+        elif key == Qt.Key_Minus and shift_pressed:
+            self.set_offset_delta(self.get_width())
+            update = True
+
+        if self.key == key:
+            self.key = None
+
 
         if update:
             if self.get_sync_state():
@@ -362,26 +385,24 @@ class PixelWidget(QWidget):
             self.statechanged.emit()
             self.repaint()
 
-
-    def keyReleaseEvent(self, event):
-        if self.key == event.key():
-            self.key = None
+        return
         
-    def mousePressEvent(self, event):
-        self.old_mouse_y = event.pos().y()
-        self.fm.on_mb_click(event.button(), self.get_address(), self.get_pixels_total(), self.mouseOffs)
-
     def mouseReleaseEvent(self, event):
+        self.prev_mouse_y = event.pos().y()
+        self.fm.on_mb_click(event, self.get_address(), self.get_pixels_total(), self.mouseOffs)
+        
         if self.get_sync_state():
             jumpto(self.base + self.offs)
             self.activateWindow()
             self.setFocus()
             self.statechanged.emit()
+        return
 
     def mouseDoubleClickEvent(self, event):
         if self.link_pixel and event.button() == Qt.LeftButton:
             addr = self.base + self.offs + self._get_offs_by_pos(event.pos())
             jumpto(addr)
+        return
 
     def wheelEvent(self, event):
         delta = event.angleDelta().y()/120
@@ -421,6 +442,7 @@ class PixelWidget(QWidget):
 
         self.statechanged.emit()
         self.repaint()
+        return
         
     def mouseMoveEvent(self, event):
         x = event.pos().x()
@@ -434,23 +456,23 @@ class PixelWidget(QWidget):
 
         # zoom
         elif self.key == Qt.Key_Control:
-            self.set_zoom_delta(-1 if y > self.old_mouse_y else 1)
+            self.set_zoom_delta(-1 if y > self.prev_mouse_y else 1)
 
         # width
         elif self.key == Qt.Key_X:
             if not self.lock_width:
-                self.set_width_delta(-1 if y > self.old_mouse_y else 1)
+                self.set_width_delta(-1 if y > self.prev_mouse_y else 1)
 
         elif self.key == Qt.Key_H:
             if not self.lock_width:
-                less = y > self.old_mouse_y
+                less = y > self.prev_mouse_y
                 delta = -16 if less else 16
                 self.set_width((self.get_width() & 0xFFFFFFF0) + delta)
 
         # scrolling (offset)
-        elif y != self.old_mouse_y:
+        elif y != self.prev_mouse_y:
             # offset (fine)
-            delta = y - self.old_mouse_y
+            delta = y - self.prev_mouse_y
 
             # offset (coarse)
             if self.key != Qt.Key_Shift:
@@ -458,10 +480,11 @@ class PixelWidget(QWidget):
                 
             self.set_offset_delta(delta)
 
-        self.old_mouse_y = y
+        self.prev_mouse_y = y
         self.x = x
         self.statechanged.emit()
         self.repaint()
+        return
 
     def set_sync_state(self, sync):
         self.sync = sync
@@ -473,6 +496,7 @@ class PixelWidget(QWidget):
         if self.fm:
             self.fm.on_deactivate()
         self.fm = filter
+
         """load filter config"""
         self.set_sync_state(self.fm.sync)
         self.set_width(self.fm.width)
@@ -483,7 +507,7 @@ class PixelWidget(QWidget):
         self.link_pixel = self.fm.link_pixel
         self.statechanged.emit()
         """load filter config end"""
-        
+
         self.fm.on_activate(idx)
         self.repaint()
 
@@ -611,7 +635,7 @@ class IDACyberForm(PluginForm):
         self.status.setText(status_text)
 
     def _load_filters(self, pw):
-        filterdir = idadir('plugins/cyber')
+        filterdir = os.path.join(idadir('plugins'), 'cyber')
         sys.path.append(filterdir)
         filters = []
         for entry in os.listdir(filterdir):

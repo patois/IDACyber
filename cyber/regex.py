@@ -31,8 +31,8 @@ class Regex(ColorFilter):
                 continue
         return
 
-    def on_mb_click(self, button, addr, size, mouse_offs):
-        if button == Qt.RightButton:
+    def on_mb_click(self, event, addr, size, mouse_offs):
+        if event.button() == Qt.RightButton:
             self._set_regex()
         return
 

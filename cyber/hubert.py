@@ -1,8 +1,8 @@
 from PyQt5.QtGui import qRgb
+from PyQt5.QtCore import Qt
 from idacyber import ColorFilter
-from ida_bytes import get_item_size
-from ida_kernwin import register_timer, unregister_timer, warning
-import winsound
+from ida_kernwin import register_timer, unregister_timer, ask_long
+import time
 
 # made with Piskel (https://www.piskelapp.com/)
 hubert = [
@@ -204,21 +204,112 @@ class Hubert(ColorFilter):
         self.pw = pw
         self.idx_frame = 0
         self.timer = None
-        self.jump_fw = True
+        self.intial_pause_frames = 2
+        self.pause_frames = self.intial_pause_frames
+        self.cur_pause_frame = self.pause_frames
+        self.direction = 1
+        self.distance = 0
+        self.max_distance = 3
+        self.timer_speed = self.initial_timer_speed = 1000/12
+        self.num_clicks = 0
+        self.ref_click = 0
+        self.prev_click = 0
+        self.onbeat_frame = 3
+        self.bpm = 0
+        self.prev_timestamp = 0
+        self.real_fps = 0
+        self.match = False
+        return
+
+    def on_mb_click(self, event, addr, size, mouse_offs):
+        global hubert
+
+        button = event.button()
+        # disabled fixme first
+        if False and button == Qt.LeftButton:
+            milli_sec = time.time() * 1000
+            if (milli_sec - self.prev_click) > 2000:
+                self.num_clicks = 0
+                self.pause_frames = self.intial_pause_frames
+                self.match = False
+
+            if self.num_clicks == 0:
+                self.ref_click = milli_sec
+                self.idx_frame = self.onbeat_frame
+                self.num_clicks = 1
+                self.timer_speed = self.initial_timer_speed
+            else:
+                """http://yours-truly.de/node/577
+                https://inferno988.deviantart.com/art/FPS-to-FPB-to-BPM-Calculator-424778748
+                Here are the spells:
+                - BPM = FPS/FPB * 60
+                - FPB = FPS / (BPM / 60)
+                - FPS = (FPB * BPM) / 60"""
+                self.bpm = 60000 * self.num_clicks / (milli_sec - self.ref_click)
+                fpb = (len(hubert)+self.pause_frames)
+                self.timer_speed = round(float(60000)/float(fpb*round(self.bpm)))
+                self.idx_frame = self.onbeat_frame
+                self.num_clicks += 1
+
+            self.prev_click = milli_sec
+
+        elif button == Qt.RightButton:
+            self.distance = (self.distance + 1) % (self.max_distance+1)
+
+        elif button == Qt.MiddleButton:
+            pass
         return
 
     def _timer_cb(self):
         global hubert
 
         if self.pw:
-            self.idx_frame = (self.idx_frame+1) % len(hubert)
+            # in-air frame
+            if self.idx_frame == 6:
+                # jump forward/backward
+                self.pw.on_filter_update_zoom_delta(self.direction*self.distance)
+                self.direction *= -1
+            # on-beat frame
+            if self.idx_frame == self.onbeat_frame:
+                # 
+                if self.cur_pause_frame > 0:
+                    self.cur_pause_frame -= 1
+                else:
+                    self.cur_pause_frame = self.pause_frames
+                    self.idx_frame = (self.idx_frame+1) % len(hubert)
+            else:
+                self.idx_frame = (self.idx_frame+1) % len(hubert)
+
+            ms = time.time() * 1000
+            self.real_fps = round(ms - self.prev_timestamp)
+
+            """if not self.match and self.num_clicks >= 8:# and self.real_fps % 2:
+                desired_fpb = self.real_fps / (self.bpm/60.0)
+                print desired_fpb
+                self.pause_frames = desired_fpb - (len(hubert)+self.pause_frames)
+                #self.match = True"""
+
+            self.prev_timestamp = ms
             self.pw.on_filter_request_update()
-        return 1000/12
+        return self.timer_speed
+
+
+
+    def on_get_annotations(self, address, size, mouse_offs):
+        """ann = [(None, 0, "BPM: %f" % self.bpm, 0xEEEEEE),
+        (None, 0, "BPM (rounded): %d " % round(self.bpm), 0xAAAAAA),
+        (None, 0, "Timer: %f " % self.timer_speed, 0xAAAAAA),
+        (None, 0, "FPS: %f " % self.real_fps, 0xAAAAAA),
+        (None, 0, "Frame: %d/%d " % (self.idx_frame+1, len(hubert)+self.pause_frames), 0xAAAAAA)]"""
+        ann = []
+        if self.idx_frame == self.onbeat_frame:
+            ann.append((None, 0, "### BEAT ###", 0xFF0000))
+        return ann
 
     def on_activate(self, idx):
         if self.timer is not None:
             unregister_timer(self.timer)
-        self.timer = register_timer(200, self._timer_cb)
+        self.timer = register_timer(self.initial_timer_speed, self._timer_cb)
         return
 
     def on_deactivate(self):
@@ -238,7 +329,7 @@ class Hubert(ColorFilter):
 
         # black bg
         for i in xrange(start_offs):
-        	colors.append((False, 0))
+            colors.append((False, 0))
 
         # hubert
         frame = hubert[self.idx_frame]
@@ -247,7 +338,7 @@ class Hubert(ColorFilter):
 
         # black bg
         for i in xrange(start_offs + framesize):
-        	colors.append((False, 0))
+            colors.append((False, 0))
 
         return colors
 

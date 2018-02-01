@@ -128,8 +128,8 @@ class Dbg(ColorFilter):
             self.hook = None
         return
 
-    def on_mb_click(self, button, addr, size, mouse_offs):
-        if button == Qt.RightButton:
+    def on_mb_click(self, event, addr, size, mouse_offs):
+        if event.button() == Qt.RightButton:
             if ask_yn(1, "Clear trace?") == 1:
                 self.hook.hits = {}
         return

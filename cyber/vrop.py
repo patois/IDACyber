@@ -30,7 +30,7 @@ class VROP(ColorFilter):
         self.maxbrightness = 100
         self.factor = self.maxbrightness/self.numframes
         self.flicker_values = list(range(1, self.numframes+1)+range(self.numframes-1,0,-1))
-        self.flicker_idx = self.flicker_values[self.numframes-1]
+        self.flicker_idx = self.flicker_values[self.numframes/2]
         self.ms = 200
 
         if self.torch:
@@ -76,8 +76,8 @@ class VROP(ColorFilter):
             self.pw.on_filter_request_update()
         return self.ms
 
-    def on_mb_click(self, button, addr, size, mouse_offs):
-        if button == Qt.RightButton:
+    def on_mb_click(self, event, addr, size, mouse_offs):
+        if event.button() == Qt.RightButton:
             if self.torch:
                 self.flicker_idx = self.flicker_values[self.numframes/2]
                 if self.timer:

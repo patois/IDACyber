@@ -13,7 +13,7 @@ class Mountain(ColorFilter):
         msg('%s\n' % Mountain.help)
         return
 
-    def on_mb_click(self, button, addr, size, mouse_offs):
+    def on_mb_click(self, event, addr, size, mouse_offs):
         msg('click at %X\n' % (addr + mouse_offs))
         return
 

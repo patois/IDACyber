@@ -22,7 +22,8 @@ class Crawl(ColorFilter):
     def on_get_annotations(self, addr, size, mouse_offs):
         return self.ann
 
-    def on_mb_click(self, button, addr, size, mouse_offs):
+    def on_mb_click(self, event, addr, size, mouse_offs):
+        button = event.button()
         if button == Qt.MiddleButton:
             mouse = addr+mouse_offs
             c = get_byte(mouse)

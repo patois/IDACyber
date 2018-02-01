@@ -22,7 +22,8 @@ class Xor(ColorFilter):
     def on_activate(self, idx):
         msg("%s filter:\n  * RMB: pick XOR key from rendered image.\n  * MMB: assign XOR key." % Xor.name)
 
-    def on_mb_click(self, button, addr, size, mouse_offs):
+    def on_mb_click(self, event, addr, size, mouse_offs):
+        button = event.button()
         if button == Qt.MiddleButton:
             self._set_xor_key()
         elif button == Qt.RightButton:
