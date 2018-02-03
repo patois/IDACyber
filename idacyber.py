@@ -21,20 +21,23 @@ banner = """
 #   TODO:
 #   * refactor
 #   * colorfilter: improve arrows/pointers
-#   * colorfilter: finish implementing filter config options (controls behavior of graph etc)
 #   * fix keyboard controls bug
 #   * optimize redrawing?
 #   * load filters using "require"
 #   * add grid?
-#   * use Qt scaling etc?
+#   * use builtin Qt routines for scaling etc?
 #   * store current settings in netnode?
 #   * review signal handlers
 #   * implement feature that generates a graph of all memory content/current idb using the
 #     current color filter which is then saved/exported to disk
 #   * implement color filter: dbghook, memory read/write tracing
 #   * implement color filter: that applies a recorded trace log to a graph
-#   * implement color filter: byte histogram
 #   * implement color filter: colorize instructions/instruction groups
+#   * implement color filter: Entropy visualization
+#   * implement color filter: Clippy! :D
+#   * implement color filter: Snake? :D
+#   * fix Hubert (beatcounter functionality, frame adjustment)
+#   * forward keyrelease events to colorfilters?
 
 class ColorFilter():
     name = None

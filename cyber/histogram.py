@@ -26,14 +26,25 @@ class Histogram(ColorFilter):
     support_selection = True
 
     def __init__(self, pw):
-        self.annotations = None
         self.pw = pw
         self.entropy = 0.0
         self.max_count = 0
         self.hist = []
+        self.bufsize = 0
 
     def on_get_annotations(self, address, size, mouse_offs):
-        return self.annotations
+        width = Histogram.width
+        cursor_x = mouse_offs % width
+        annotations = None
+        if self.bufsize:
+            count = self.hist[cursor_x]
+            annotations = [(None, None, 'Start: 0x%X' % address, 0xf2f0f0),
+            (None, None, 'End: 0x%X' % (address+self.bufsize), 0xf2f0f0),
+            (None, None, 'Size: 0x%X' % (self.bufsize), 0xf2f0f0),
+            (None, None, '', None),
+            (None, None, 'Entropy: %f' % float(self.entropy), 0xf2f0f0),
+            (None, None, 'Byte: 0x%02X x %d (%.2f%%)' % (cursor_x, count, (count/float(self.bufsize))*100.0), 0xf2f0f0)]
+        return annotations
 
     def on_process_buffer(self, buffers, addr, size, mouse_offs):
         colors = [(True, 0x193d5a)] * size
@@ -42,10 +53,10 @@ class Histogram(ColorFilter):
 
         height = int(round(size / width))
         e = ''
-        bufsize = 0
+        self.bufsize = 0
         for mapped, buf in buffers:
             if mapped:
-                bufsize += len(buf)
+                self.bufsize += len(buf)
                 for c in buf:
                     e += c
                     self.hist[ord(c)] += 1
@@ -64,18 +75,13 @@ class Histogram(ColorFilter):
                 for y in xrange(dst_y):
                     colors[height*width - width+i - y*width] = (True, 0xf2f0f0 if i == cursor_x else [0xffad00,0xc10000][i%2])
 
-        self.annotations = [(None, None, 'Start: 0x%X' % addr, 0xf2f0f0),
-        (None, None, 'End: 0x%X' % (addr+bufsize), 0xf2f0f0),
-        (None, None, 'Size: 0x%X' % (bufsize), 0xf2f0f0),
-        (None, None, '', None),
-        (None, None, 'Entropy: %f' % float(self.entropy), 0xf2f0f0),
-        (None, None, 'Byte: 0x%02X (%d/%d)' % (cursor_x, self.hist[cursor_x], self.max_count), 0xf2f0f0)]
-
         return colors
 
     def on_get_tooltip(self, addr, size, mouse_offs):
         i = mouse_offs % Histogram.width
-        tooltip = '%02X: %d occurences' % (i, self.hist[i])
+        tooltip = 'This space for rent'
+        if self.bufsize:
+            tooltip = '0x%02X x %d  (%.2f%%)' % (i, self.hist[i], (self.hist[i]/float(self.bufsize))*100.0)
 
         return tooltip
 
