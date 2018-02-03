@@ -318,7 +318,12 @@ class PixelWidget(QWidget):
         if key == Qt.Key_G:
             addr = AskAddr(self.base + self.offs, 'Jump to address')
             if addr is not None:
-                jumpto(addr)
+                if self.sync:
+                    jumpto(addr)
+                else:
+                    #minea = get_inf_structure().get_minEA()
+                    #maxea = get_inf_structure().get_maxEA()
+                    self.set_addr(addr)
 
         elif key == Qt.Key_F2:
             hlp = self.fm.help

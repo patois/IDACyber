@@ -3,6 +3,8 @@ from PyQt5.QtCore import Qt
 from idacyber import ColorFilter
 from math import log
 
+# http://www.color-hex.com/color-palette/54234
+
 # taken from http://blog.dkbza.org/2007/05/scanning-data-for-entropy-anomalies.html
 def H(data):
   if not data:
@@ -55,10 +57,10 @@ class Histogram(ColorFilter):
                     hist[ord(c)] += 1
         self.entropy = H(e)
 
-        self.annotations = [(None, None, "Enropy: %f" % float(self.entropy), 0xFF0000),
-        (None, None, "Start %X" % addr, 0xFF0000),
-        (None, None, "End: %X" % (addr+size), 0xFF0000),
-        (self.loc, 0xFF0000, "test", 0xFF0000)]
+        self.annotations = [(None, None, "Enropy: %f" % float(self.entropy), 0xf2f0f0),
+        (None, None, "Start %X" % addr, 0xf2f0f0),
+        (None, None, "End: %X" % (addr+size), 0xf2f0f0),
+        (self.loc, 0xf2f0f0, "test", 0xf2f0f0)]
 
         max_count = max(hist)
 
@@ -66,11 +68,10 @@ class Histogram(ColorFilter):
             for i in xrange(256):
                 count = hist[i]
         
-                col = 0xEEEEEE
-
+                col = 0x193d5a
                 if count:
                     if cur_y > height-((count/float(max_count))*height):
-                        col = 0x00008F
+                        col = 0xffad00
                 colors.append((True, col))
 
         return colors
