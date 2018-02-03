@@ -23,6 +23,7 @@ class Histogram(ColorFilter):
     zoom = 2
     link_pixel = False
     show_address_range = False
+    support_selection = True
 
     def __init__(self, pw):
         self.annotations = None
@@ -41,8 +42,10 @@ class Histogram(ColorFilter):
 
         height = int(round(size / width))
         e = ''
+        bufsize = 0
         for mapped, buf in buffers:
             if mapped:
+                bufsize += len(buf)
                 for c in buf:
                     e += c
                     self.hist[ord(c)] += 1
@@ -61,12 +64,12 @@ class Histogram(ColorFilter):
                 for y in xrange(dst_y):
                     colors[height*width - width+i - y*width] = (True, 0xf2f0f0 if i == cursor_x else [0xffad00,0xc10000][i%2])
 
-        self.annotations = [(None, None, 'Start: %X' % addr, 0xf2f0f0),
-        (None, None, 'End: %X' % (addr+size), 0xf2f0f0),
-        (None, None, 'Size: %X' % (size), 0xf2f0f0),
+        self.annotations = [(None, None, 'Start: 0x%X' % addr, 0xf2f0f0),
+        (None, None, 'End: 0x%X' % (addr+bufsize), 0xf2f0f0),
+        (None, None, 'Size: 0x%X' % (bufsize), 0xf2f0f0),
         (None, None, '', None),
         (None, None, 'Entropy: %f' % float(self.entropy), 0xf2f0f0),
-        (None, None, 'Byte: 0x%02X (%d/%s)' % (cursor_x, self.hist[cursor_x], self.max_count), 0xf2f0f0)]
+        (None, None, 'Byte: 0x%02X (%d/%d)' % (cursor_x, self.hist[cursor_x], self.max_count), 0xf2f0f0)]
 
         return colors
 

@@ -47,6 +47,7 @@ class ColorFilter():
     show_address_range = True
     zoom = 3
     link_pixel = True
+    support_selection = False
 
 
     def __init__(self, pw=None):
@@ -211,9 +212,16 @@ class PixelWidget(QWidget):
     def render_image(self, cursor=True):
         size = self.size()
         self.maxPixelsTotal = self.maxPixelsPerLine * (size.height() / self.pixelSize)
-        self.buffers = self.bh.get_buffers(self.base + self.offs, self.get_pixels_total())       
-        img = QImage(self.maxPixelsPerLine, size.height() / self.pixelSize, QImage.Format_RGB32)
         addr = self.base + self.offs
+        buf_size = self.get_pixels_total()
+
+        if self.fm.support_selection:
+            selected, start, end = read_range_selection(None)
+            if selected:
+                addr = start
+                buf_size = end-start
+        self.buffers = self.bh.get_buffers(addr, buf_size)
+        img = QImage(self.maxPixelsPerLine, size.height() / self.pixelSize, QImage.Format_RGB32)
         pixels = self.fm.on_process_buffer(self.buffers, addr, self.get_pixels_total(), self.mouseOffs)
 
         x = y = 0
