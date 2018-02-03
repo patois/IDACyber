@@ -91,14 +91,13 @@ class VROP(ColorFilter):
             self.pw.on_filter_request_update()
         return
 
-    def on_process_buffer(self, buffers, addr,size, mouse_offs):
+    def on_process_buffer(self, buffers, addr, size, mouse_offs):
         colors = []
         goffs = 0
         self.ret_locs = []
         nret = 0
         colidx = 0
         width = self.pw.get_width()
-        total = self.pw.get_pixels_total()
 
         for mapped, buf in buffers:
             if mapped:        
@@ -132,7 +131,7 @@ class VROP(ColorFilter):
                         realpxl_idx = targetpxl_idx+neighbour
                         brightness = (abs(row)+abs(neighbour))*10
                         # check top, bottom, left, right borders
-                        if realpxl_idx > 0 and realpxl_idx < total and realpxl_idx/width == targetpxl_idx/width:
+                        if realpxl_idx > 0 and realpxl_idx < size and realpxl_idx/width == targetpxl_idx/width:
                             mapped, col = colors[realpxl_idx]
 
                             if mapped:
@@ -149,7 +148,7 @@ class VROP(ColorFilter):
         colidx = 0
         for mapped, col in colors:
             if mapped:
-                colors[colidx] = (mapped, self._apply_shadow_fx(col, colidx, width, total))
+                colors[colidx] = (mapped, self._apply_shadow_fx(col, colidx, width, size))
             colidx += 1
         return colors
 
