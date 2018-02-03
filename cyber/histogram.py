@@ -20,62 +20,63 @@ class Histogram(ColorFilter):
     name = "Histogram"
     width = 256
     lock_width = True
-    zoom = 3
+    zoom = 2
     link_pixel = False
     show_address_range = False
 
     def __init__(self, pw):
         self.annotations = None
         self.pw = pw
-        self.loc = None
         self.entropy = 0.0
-
-    def on_mb_click(self, event, addr, size, mouse_offs):
-        if event.button() == Qt.RightButton:
-            if self.loc:
-                self.loc = None
-                self.annotations = None
-            else:
-                self.loc = (mouse_offs % Histogram.width, 0)
-        return
-
+        self.max_count = 0
+        self.hist = []
 
     def on_get_annotations(self, address, size, mouse_offs):
         return self.annotations
 
     def on_process_buffer(self, buffers, addr, size, mouse_offs):
-        colors = []
-        hist = [0] * 256
+        colors = [(True, 0x193d5a)] * size
+        self.hist = [0] * 256
         width = Histogram.width
 
-        height = size / width
-        e = ""
+        height = int(round(size / width))
+        e = ''
         for mapped, buf in buffers:
             if mapped:
                 for c in buf:
                     e += c
-                    hist[ord(c)] += 1
+                    self.hist[ord(c)] += 1
         self.entropy = H(e)
+        self.max_count = max(self.hist)
+        cursor_x = mouse_offs % width
 
-        self.annotations = [(None, None, "Enropy: %f" % float(self.entropy), 0xf2f0f0),
-        (None, None, "Start %X" % addr, 0xf2f0f0),
-        (None, None, "End: %X" % (addr+size), 0xf2f0f0),
-        (self.loc, 0xf2f0f0, "test", 0xf2f0f0)]
+        if self.max_count > 0 and height > 0:
+            bars = []
+            for i in xrange(len(self.hist)):
+                count = self.hist[i]
+                bars.append(int(round((count/float(self.max_count))*height)))
 
-        max_count = max(hist)
+            for i in xrange(len(bars)):
+                dst_y = bars[i]
+                for y in xrange(dst_y):
+                    colors[height*width - width+i - y*width] = (True, 0xf2f0f0 if i == cursor_x else [0xffad00,0xc10000][i%2])
 
-        for cur_y in xrange(1,(size/width)+1):
-            for i in xrange(256):
-                count = hist[i]
-        
-                col = 0x193d5a
-                if count:
-                    if cur_y > height-((count/float(max_count))*height):
-                        col = 0xffad00
-                colors.append((True, col))
+        self.annotations = [(None, None, 'Start: %X' % addr, 0xf2f0f0),
+        (None, None, 'End: %X' % (addr+size), 0xf2f0f0),
+        (None, None, 'Size: %X' % (size), 0xf2f0f0),
+        (None, None, '', None),
+        (None, None, 'Entropy: %f' % float(self.entropy), 0xf2f0f0),
+        (None, None, 'Byte: 0x%02X (%d/%s)' % (cursor_x, self.hist[cursor_x], self.max_count), 0xf2f0f0)]
 
         return colors
-    
+
+    def on_get_tooltip(self, addr, size, mouse_offs):
+        i = mouse_offs % Histogram.width
+        tooltip = '%02X: %d occurences' % (i, self.hist[i])
+
+        return tooltip
+
+
 def FILTER_INIT(pw):
     return Histogram(pw)
     
