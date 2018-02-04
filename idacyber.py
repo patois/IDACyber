@@ -251,8 +251,8 @@ class PixelWidget(QWidget):
         # draw addresses
         #top = "%X:" % get_inf_structure().get_minEA()
         #bottom = "%X:" % get_inf_structure().get_maxEA()
-        top = "%X:" % self.get_address()
-        bottom = "%X:" % (self.get_address() + ((self.get_pixels_total() / self.maxPixelsPerLine) - 1) * self.maxPixelsPerLine)
+        top = '%X:' % self.get_address()
+        bottom = '%X' % (self.get_address() + ((self.get_pixels_total() / self.maxPixelsPerLine) - 1) * self.maxPixelsPerLine)
         qp.setPen(QColor(0x808080))
         qp.drawText(self.rect_x - qp.fontMetrics().width(top) - bar_width - 2 * spaces_bar, qp.fontMetrics().height(), top)
         qp.drawText(self.rect_x - qp.fontMetrics().width(bottom) - bar_width - 2 * spaces_bar, self.rect().height() - qp.fontMetrics().height() / 2, bottom)        
@@ -389,8 +389,8 @@ class PixelWidget(QWidget):
         elif key == Qt.Key_F2:
             hlp = self.fm.help
             if hlp is None:
-                hlp = "Help unavailable"
-            info(hlp+"\n\n")
+                hlp = 'Help unavailable'
+            info(hlp+'\n\n')
 
         elif key == Qt.Key_F12:
             img = self.render_image(cursor = False)
@@ -406,6 +406,9 @@ class PixelWidget(QWidget):
                         warning('Error exporting screenshot to %s.' % fname)
                     done = True
                 i += 1
+                if i > 40:
+                    warning('Aborted. Error exporting screenshot.')
+                    break
 
         elif key == Qt.Key_PageDown:
             self.set_offset_delta(-self.get_pixels_total())
@@ -805,7 +808,7 @@ class IDACyberPlugin(plugin_t):
         global banner
         self.form = None
         self.options = PluginForm.WOPN_MENU|PluginForm.WOPN_RESTORE|PluginForm.FORM_SAVE|PluginForm.WOPN_PERSIST|PluginForm.WCLS_CLOSE_LATER
-        msg("%s" % banner)
+        msg('%s' % banner)
         return PLUGIN_KEEP
 
     def run(self, arg):

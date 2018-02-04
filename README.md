@@ -21,7 +21,7 @@ IDACyber is a plugin for the Interactive Disassembler that visualizes an IDA dat
 
 1. Checkboxes
 
-  * **Sync**: Synchronizes plotted data to IDA cursor and vice versa
+  * **Sync**: Synchronize graph and IDA cursor
 
 2. Mouse controls
 
@@ -45,6 +45,7 @@ IDACyber is a plugin for the Interactive Disassembler that visualizes an IDA dat
   * **Ctrl-Plus** - Zoom in
   * **Ctrl-Minus** - Zoom out
   * **g** - Specify address to jump to
+  * **s** - Toggle 'sync' on/off
   * **F2** - Display help/information about the current ColorFilter
   * **F12** - Export current graph as bitmap 
 
@@ -56,4 +57,12 @@ A color filter is nothing but a separate Python file that inherits from the Colo
 
 Yes :[
 
+### Gallery
+
+The following shows an excerpt of the available color filters
+
+![IDACyber Gallery 01](/screenshots/screen03.png?raw=true "IDACyber")
+![IDACyber Gallery 02](/screenshots/screen04.png?raw=true "IDACyber")
+![IDACyber Gallery 03](/screenshots/screen05.png?raw=true "IDACyber")
+![IDACyber Gallery 04](/screenshots/screen06.png?raw=true "IDACyber")
 ![IDACyber animated](/screenshots/idacyber.gif?raw=true "Visual pattern recognition")
