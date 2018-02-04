@@ -163,9 +163,12 @@ class PixelWidget(QWidget):
         self.mouseOffs = 0
         self.sync = True
         self.bh = bufhandler
+        self.mouse_abs_x = 0
+        self.mouse_abs_y = 0
         self.elemX = 0
         self.elemY = 0
         self.rect_x = 0
+        self.rect_x_width = 0
         self.lock_width = False
         self.lock_sync = False
         self.link_pixel = True
@@ -180,7 +183,8 @@ class PixelWidget(QWidget):
 
     def paintEvent(self, event):
         # set leftmost x-coordinate of graph
-        self.rect_x = (self.rect().width() / 2) - ((self.maxPixelsPerLine * self.pixelSize) / 2)
+        self.rect_x_width = self.maxPixelsPerLine * self.pixelSize        
+        self.rect_x = (self.rect().width() / 2) - (self.rect_x_width / 2)
 
         qp = QPainter()
         qp.begin(self)
@@ -290,7 +294,10 @@ class PixelWidget(QWidget):
                 if not x:
                     y = y + 1
 
-        if cursor and self.fm.highlight_cursor:
+        if (cursor and self.fm.highlight_cursor and
+            self.mouse_abs_x >= self.rect_x and
+            self.mouse_abs_x < self.rect_x + self.rect_x_width):
+            
             p = QPoint(self.get_elem_x(), self.get_elem_y())
             img.setPixel(p, ~(img.pixelColor(p)).rgb())
 
@@ -509,43 +516,45 @@ class PixelWidget(QWidget):
     def mouseMoveEvent(self, event):
         x = event.pos().x()
         y = event.pos().y()
+        within_graph = (x >= self.rect_x and x < self.rect_x + self.rect_x_width)
         
-        if event.buttons() == Qt.NoButton:
-            self._update_mouse_coords(event.pos())
-            self.mouseOffs = self._get_offs_by_pos(event.pos())
+        if within_graph:
+            if event.buttons() == Qt.NoButton:
+                self._update_mouse_coords(event.pos())
+                self.mouseOffs = self._get_offs_by_pos(event.pos())
 
-            self.setToolTip(self.fm.on_get_tooltip(self.get_address(), self.get_pixels_total(), self.mouseOffs))
+                self.setToolTip(self.fm.on_get_tooltip(self.get_address(), self.get_pixels_total(), self.mouseOffs))
 
-        # zoom
-        elif self.key == Qt.Key_Control:
-            self.set_zoom_delta(-1 if y > self.prev_mouse_y else 1)
+            # zoom
+            elif self.key == Qt.Key_Control:
+                self.set_zoom_delta(-1 if y > self.prev_mouse_y else 1)
 
-        # width
-        elif self.key == Qt.Key_X:
-            if not self.lock_width:
-                self.set_width_delta(-1 if y > self.prev_mouse_y else 1)
+            # width
+            elif self.key == Qt.Key_X:
+                if not self.lock_width:
+                    self.set_width_delta(-1 if y > self.prev_mouse_y else 1)
 
-        elif self.key == Qt.Key_H:
-            if not self.lock_width:
-                less = y > self.prev_mouse_y
-                delta = -16 if less else 16
-                self.set_width((self.get_width() & 0xFFFFFFF0) + delta)
+            elif self.key == Qt.Key_H:
+                if not self.lock_width:
+                    less = y > self.prev_mouse_y
+                    delta = -16 if less else 16
+                    self.set_width((self.get_width() & 0xFFFFFFF0) + delta)
 
-        # scrolling (offset)
-        elif y != self.prev_mouse_y:
-            # offset (fine)
-            delta = y - self.prev_mouse_y
+            # scrolling (offset)
+            elif y != self.prev_mouse_y:
+                # offset (fine)
+                delta = y - self.prev_mouse_y
 
-            # offset (coarse)
-            if self.key != Qt.Key_Shift:
-                delta *= self.get_width()
-                
-            self.set_offset_delta(delta)
+                # offset (coarse)
+                if self.key != Qt.Key_Shift:
+                    delta *= self.get_width()
+                    
+                self.set_offset_delta(delta)
 
-        self.prev_mouse_y = y
-        self.x = x
-        self.statechanged.emit()
-        self.repaint()
+            self.prev_mouse_y = y
+            self.x = x
+            self.statechanged.emit()
+            self.repaint()
         return
 
     def set_sync_state(self, sync):
@@ -634,8 +643,13 @@ class PixelWidget(QWidget):
         return offs
 
     def _update_mouse_coords(self, pos):
-        self.elemX = max(0, min((max(0, pos.x() - self.rect_x)) / self.pixelSize, self.maxPixelsPerLine - 1))
-        self.elemY = min(pos.y() / self.pixelSize, self.maxPixelsTotal / self.maxPixelsPerLine - 1)
+        x = pos.x()
+        y = pos.y()
+        self.mouse_abs_x = x
+        self.mouse_abs_y = y
+
+        self.elemX = max(0, min((max(0, x - self.rect_x)) / self.pixelSize, self.maxPixelsPerLine - 1))
+        self.elemY = min(y / self.pixelSize, self.maxPixelsTotal / self.maxPixelsPerLine - 1)
 
     def get_elem_x(self):
         return self.elemX
@@ -807,7 +821,12 @@ class IDACyberPlugin(plugin_t):
     def init(self):
         global banner
         self.form = None
-        self.options = PluginForm.WOPN_MENU|PluginForm.WOPN_RESTORE|PluginForm.FORM_SAVE|PluginForm.WOPN_PERSIST|PluginForm.WCLS_CLOSE_LATER
+        self.options = (PluginForm.WOPN_MENU |
+            PluginForm.WOPN_ONTOP |
+            PluginForm.WOPN_RESTORE |
+            PluginForm.FORM_SAVE |
+            PluginForm.WOPN_PERSIST |
+            PluginForm.WCLS_CLOSE_LATER)
         msg('%s' % banner)
         return PLUGIN_KEEP
 

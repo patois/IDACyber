@@ -59,7 +59,7 @@ Yes :[
 
 ### Gallery
 
-The following shows an excerpt of the available color filters
+The following shows an excerpt of the color filters available for IDACyber:
 
 ![IDACyber Gallery 01](/screenshots/screen03.png?raw=true "IDACyber")
 ![IDACyber Gallery 02](/screenshots/screen04.png?raw=true "IDACyber")
