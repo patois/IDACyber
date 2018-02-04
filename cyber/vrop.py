@@ -7,7 +7,7 @@ from ida_lines import generate_disasm_line, GENDSM_FORCE_CODE, GENDSM_REMOVE_TAG
 from ida_ua import can_decode, insn_t, decode_insn
 from ida_idp import is_ret_insn
 from ida_segment import getseg, SEGPERM_EXEC
-from ida_kernwin import register_timer, unregister_timer
+from ida_kernwin import register_timer, unregister_timer, warning
 
 class VROP(ColorFilter):
     name = "VisualROP"

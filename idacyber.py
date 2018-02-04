@@ -188,16 +188,15 @@ class PixelWidget(QWidget):
         # fill background
         qp.fillRect(self.rect(), Qt.black)
 
-        if self.show_address_range:
-            # draw addresses
-            qp.setPen(QColor(Qt.white))
-            top = "%X:" % self.get_address()
-            bottom = "%X:" % (self.get_address() + ((self.get_pixels_total() / self.maxPixelsPerLine) - 1) * self.maxPixelsPerLine)
-            qp.drawText(self.rect_x - qp.fontMetrics().width(top) - self.pixelSize, qp.fontMetrics().height(), top)
-            qp.drawText(self.rect_x - qp.fontMetrics().width(bottom) - self.pixelSize, self.rect().height() - qp.fontMetrics().height() / 2, bottom)
+        content_addr = content_size = None
+        if self.fm.support_selection:
+            selected, start, end = read_range_selection(None)
+            if selected:
+                content_addr = start
+                content_size = end-start
 
         # use colorfilter to render image
-        img = self.render_image()
+        img = self.render_image(addr=content_addr, buf_size=content_size)
 
         if img:
             # draw image
@@ -205,24 +204,65 @@ class PixelWidget(QWidget):
                 QPoint(self.rect_x + self.maxPixelsPerLine * self.pixelSize, (self.get_pixels_total() / self.maxPixelsPerLine) * self.pixelSize)),
                 img)
 
+        if self.show_address_range:
+            self.render_slider(qp, addr=content_addr, buf_size=content_size)
+
         # get and draw annotations and pointers
         annotations = self.fm.on_get_annotations(self.get_address(), self.get_pixels_total(), self.mouseOffs)
         if annotations:
             self.render_annotations(qp, annotations)
 
-        qp.end()       
+        qp.end()
+        return
 
-    def render_image(self, cursor=True):
+    def render_slider(self, qp, addr=None, buf_size=None):
+        if addr is None or buf_size is None:
+            addr = self.base + self.offs
+            buf_size = self.get_pixels_total()
+
+        lowest_ea = get_inf_structure().get_minEA()
+        highest_ea = get_inf_structure().get_maxEA()
+        start_offs = addr - lowest_ea
+        addr_space = highest_ea - lowest_ea
+
+        perc_s = float(start_offs) / float(addr_space)
+        perc_e = float(start_offs+buf_size) / float(addr_space)
+        
+        bar_width = 20
+
+        spaces_bar = 5
+        bar_x = self.rect_x - spaces_bar - bar_width
+        bar_y = 5
+        bar_height = self.rect().height() - 2 * bar_y
+        qp.fillRect(bar_x, bar_y, bar_width, bar_height, QColor(0x191919))
+
+        slider_offs_s = int(round(perc_s * bar_height))
+        slider_offs_e = int(round(perc_e * bar_height))
+
+        spaces_slider = 2
+        slider_x = bar_x + spaces_slider
+        slider_y = bar_y + slider_offs_s
+        slider_width = bar_width - 2 * spaces_slider
+        # limit slider height to bar_height
+        slider_height = max(min(slider_offs_e - slider_offs_s, bar_height - (slider_y - bar_y)), 1)
+
+        qp.fillRect(slider_x, slider_y, slider_width, slider_height, QColor(0x404040))
+
+        # draw addresses
+        qp.setPen(QColor(0x808080))
+        top = "%X:" % get_inf_structure().get_minEA() #self.get_address()
+        bottom = "%X:" % get_inf_structure().get_maxEA() #(self.get_address() + ((self.get_pixels_total() / self.maxPixelsPerLine) - 1) * self.maxPixelsPerLine)
+        qp.drawText(self.rect_x - qp.fontMetrics().width(top) - bar_width - 2 * spaces_bar, qp.fontMetrics().height(), top)
+        qp.drawText(self.rect_x - qp.fontMetrics().width(bottom) - bar_width - 2 * spaces_bar, self.rect().height() - qp.fontMetrics().height() / 2, bottom)        
+        return
+
+    def render_image(self, addr=None, buf_size=None, cursor=True):
         size = self.size()
         self.maxPixelsTotal = self.maxPixelsPerLine * (size.height() / self.pixelSize)
-        addr = self.base + self.offs
-        buf_size = self.get_pixels_total()
+        if addr is None or buf_size is None:
+            addr = self.base + self.offs
+            buf_size = self.get_pixels_total()
 
-        if self.fm.support_selection:
-            selected, start, end = read_range_selection(None)
-            if selected:
-                addr = start
-                buf_size = end-start
         self.buffers = self.bh.get_buffers(addr, buf_size)
         img = QImage(self.maxPixelsPerLine, size.height() / self.pixelSize, QImage.Format_RGB32)
         pixels = self.fm.on_process_buffer(self.buffers, addr, self.get_pixels_total(), self.mouseOffs)

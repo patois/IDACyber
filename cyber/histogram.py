@@ -22,8 +22,8 @@ class Histogram(ColorFilter):
     lock_width = True
     zoom = 2
     link_pixel = False
-    show_address_range = False
     support_selection = True
+    highlight_cursor = False
 
     def __init__(self, pw):
         self.pw = pw
