@@ -249,9 +249,11 @@ class PixelWidget(QWidget):
         qp.fillRect(slider_x, slider_y, slider_width, slider_height, QColor(0x404040))
 
         # draw addresses
+        #top = "%X:" % get_inf_structure().get_minEA()
+        #bottom = "%X:" % get_inf_structure().get_maxEA()
+        top = "%X:" % self.get_address()
+        bottom = "%X:" % (self.get_address() + ((self.get_pixels_total() / self.maxPixelsPerLine) - 1) * self.maxPixelsPerLine)
         qp.setPen(QColor(0x808080))
-        top = "%X:" % get_inf_structure().get_minEA() #self.get_address()
-        bottom = "%X:" % get_inf_structure().get_maxEA() #(self.get_address() + ((self.get_pixels_total() / self.maxPixelsPerLine) - 1) * self.maxPixelsPerLine)
         qp.drawText(self.rect_x - qp.fontMetrics().width(top) - bar_width - 2 * spaces_bar, qp.fontMetrics().height(), top)
         qp.drawText(self.rect_x - qp.fontMetrics().width(bottom) - bar_width - 2 * spaces_bar, self.rect().height() - qp.fontMetrics().height() / 2, bottom)        
         return
@@ -372,9 +374,10 @@ class PixelWidget(QWidget):
                 if self.sync:
                     jumpto(addr)
                 else:
-                    #minea = get_inf_structure().get_minEA()
-                    #maxea = get_inf_structure().get_maxEA()
-                    self.set_addr(addr)
+                    minea = get_inf_structure().get_minEA()
+                    maxea = get_inf_structure().get_maxEA()
+                    dst = min(max(addr, minea), maxea)
+                    self.set_addr(dst)
 
         elif key == Qt.Key_F2:
             hlp = self.fm.help
