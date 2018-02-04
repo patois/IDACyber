@@ -364,9 +364,10 @@ class PixelWidget(QWidget):
     def keyReleaseEvent(self, event):
         update = False
         key = event.key()
+        modifiers = event.modifiers()
 
-        shift_pressed = (event.modifiers() & Qt.ShiftModifier) != 0
-        ctrl_pressed = (event.modifiers() & Qt.ControlModifier) != 0
+        shift_pressed = ((modifiers & Qt.ShiftModifier) == Qt.ShiftModifier)
+        ctrl_pressed = ((modifiers & Qt.ControlModifier) == Qt.ControlModifier)
 
         if key == Qt.Key_G:
             addr = AskAddr(self.base + self.offs, 'Jump to address')
@@ -378,6 +379,12 @@ class PixelWidget(QWidget):
                     maxea = get_inf_structure().get_maxEA()
                     dst = min(max(addr, minea), maxea)
                     self.set_addr(dst)
+
+        elif key == Qt.Key_S:
+            if not self.fm.lock_sync:
+                self.set_sync_state(not self.get_sync_state())
+                update = True
+
 
         elif key == Qt.Key_F2:
             hlp = self.fm.help
@@ -409,32 +416,25 @@ class PixelWidget(QWidget):
             update = True
 
         elif key == Qt.Key_Plus:
-            self.set_offset_delta(-1)
+            if ctrl_pressed:
+                self.set_zoom_delta(1)
+            elif shift_pressed:
+                self.set_offset_delta(-self.get_width())
+            else:
+                self.set_offset_delta(-1)
             update = True
 
         elif key == Qt.Key_Minus:
-            self.set_offset_delta(1)
-            update = True
-
-        elif key == Qt.Key_Plus and ctrl_pressed:
-            self.set_zoom_delta(1)
-            update = True
-
-        elif key == Qt.Key_Minus and ctrl_pressed:
-            self.set_zoom_delta(-1)
-            update = True
-
-        elif key == Qt.Key_Plus and shift_pressed:
-            self.set_offset_delta(-self.get_width())
-            update = True
-
-        elif key == Qt.Key_Minus and shift_pressed:
-            self.set_offset_delta(self.get_width())
+            if ctrl_pressed:
+                self.set_zoom_delta(-1)
+            elif shift_pressed:
+                self.set_offset_delta(self.get_width())
+            else:
+                self.set_offset_delta(1)
             update = True
 
         if self.key == key:
             self.key = None
-
 
         if update:
             if self.get_sync_state():
