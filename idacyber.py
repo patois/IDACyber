@@ -38,6 +38,7 @@ banner = """
 #   * implement color filter: Snake? :D
 #   * fix Hubert (beatcounter functionality, frame adjustment)
 #   * forward keyrelease events to colorfilters?
+#   * draggable slider?
 
 class ColorFilter():
     name = None
@@ -243,12 +244,12 @@ class PixelWidget(QWidget):
         slider_offs_s = int(round(perc_s * bar_height))
         slider_offs_e = int(round(perc_e * bar_height))
 
-        spaces_slider = 2
+        spaces_slider = 1
         slider_x = bar_x + spaces_slider
         slider_y = bar_y + slider_offs_s
         slider_width = bar_width - 2 * spaces_slider
         # limit slider height to bar_height
-        slider_height = max(min(slider_offs_e - slider_offs_s, bar_height - (slider_y - bar_y)), 1)
+        slider_height = max(min(slider_offs_e - slider_offs_s, bar_height - (slider_y - bar_y)), 4)
 
         qp.fillRect(slider_x, slider_y, slider_width, slider_height, QColor(0x404040))
 
@@ -705,7 +706,7 @@ class IDACyberForm(PluginForm):
             lbl_cursor + val_cursor,
             lbl_pixel + val_pixel,
             lbl_zoom + val_zoom))
-        # move code to separate, new signal handler
+        # TODO: move code to separate, new signal handler
         self.cb.setChecked(self.pw.sync)
         self.cb.setEnabled(not self.pw.lock_sync)
         self.status.setText(status_text)
