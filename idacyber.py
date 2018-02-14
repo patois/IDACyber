@@ -1,5 +1,5 @@
 import os
-from PyQt5.QtWidgets import QWidget, QApplication, QCheckBox, QLabel, QComboBox, QSizePolicy
+from PyQt5.QtWidgets import QWidget, QApplication, QCheckBox, QLabel, QComboBox, QSizePolicy, QVBoxLayout, QHBoxLayout
 from PyQt5.QtGui import QPainter, QColor, QFont, QPen, QPixmap, QImage, qRgb, QPainterPath
 from PyQt5.QtCore import Qt, QObject, pyqtSignal, QRect, QSize, QPoint
 from idaapi import *
@@ -378,7 +378,7 @@ class PixelWidget(QWidget):
         ctrl_pressed = ((modifiers & Qt.ControlModifier) == Qt.ControlModifier)
 
         if key == Qt.Key_G:
-            addr = AskAddr(self.base + self.offs, 'Jump to address')
+            addr = ask_addr(self.base + self.offs, 'Jump to address')
             if addr is not None:
                 if self.sync:
                     jumpto(addr)
@@ -729,7 +729,7 @@ class IDACyberForm(PluginForm):
 
     def _change_screen_ea(self):
         if self.pw.get_sync_state():
-            ea = ScreenEA()
+            ea = get_screen_ea()
             self.pw.set_addr(ea)
             # TODO
             self._update_widget()
@@ -757,11 +757,11 @@ class IDACyberForm(PluginForm):
         self.form = form
         self.parent = self.FormToPyQtWidget(form)
 
-        vl = QtWidgets.QVBoxLayout()
-        hl = QtWidgets.QHBoxLayout()
-        hl2 = QtWidgets.QHBoxLayout()
-        hl3 = QtWidgets.QHBoxLayout()
-        hl4 = QtWidgets.QHBoxLayout()
+        vl = QVBoxLayout()
+        hl = QHBoxLayout()
+        hl2 = QHBoxLayout()
+        hl3 = QHBoxLayout()
+        hl4 = QHBoxLayout()
 
 
         flt = QLabel()  
@@ -784,7 +784,7 @@ class IDACyberForm(PluginForm):
         self.filterlist = self._load_filters(self.pw)
 
         self.pw.set_filter(self.filterlist[0][1], 0)
-        self.pw.set_addr(ScreenEA())
+        self.pw.set_addr(get_screen_ea())
 
         self.filterChoser = QComboBox()
         self.filterChoser.addItems([obj.name for filter, obj in self.filterlist])
