@@ -15,39 +15,7 @@ IDACyber is a plugin for the Interactive Disassembler that visualizes an IDA dat
 
 ### Usage
 
-* Ctrl-Shift-C starts the plugin and creates a new dockable window. Multiple instances can be created by re-running the plugin which allows several ColorFilters to be run in parallel. The resulting image can be interacted with using the following controls.
-
-### GUI, mouse and keyboard controls
-
-1. Checkboxes
-
-  * **Sync**: Synchronize graph and IDA cursor
-
-2. Mouse controls
-
-  * **Left mousebutton + mouse movement**: Vertical scrolling
-  * **Mousewheel**: Fine grained vertical scrolling
-  * **Double click**: Jump to address under cursor
-
-3. Mouse Modifiers
-
-  * **X**: Change width (X axis)
-  * **H**: Change width at 16byte boundary (X axis)
-  * **Shift**: Fine grained scrolling
-  * **Ctrl**: Zoom
-
-4. Keyboard shortcuts
-
-  * **Minus** - Scroll up
-  * **Plus** - Scroll down
-  * **Page up** - Scroll page up
-  * **Page down** - Scroll page down
-  * **Ctrl-Plus** - Zoom in
-  * **Ctrl-Minus** - Zoom out
-  * **g** - Specify address to jump to
-  * **s** - Toggle 'sync' on/off
-  * **F2** - Display help/information about the current ColorFilter
-  * **F12** - Export current graph as bitmap 
+* Ctrl-Shift-C starts the plugin and creates a new dockable window. Multiple instances can be created by re-running the plugin which allows several ColorFilters to be run in parallel. The resulting graph can be interacted with using keyboard and mouse controls which are explained by the quick manual that can be opened by pressing Ctrl-F1.
 
 ### Writing custom color filters
 
