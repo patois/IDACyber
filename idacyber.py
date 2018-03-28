@@ -36,6 +36,9 @@ Keyboard shortcuts and Hotkeys:
 -------------------------------------------------------------------
 
 * CTRL-F1      - Display this help/quick manual
+* F2           - Display help about current filter
+* F12          - Export current graph to disk
+
 * UP           - Scroll up
 * DOWN         - Scroll down
 * PAGE UP      - Scroll up a 'page'
@@ -46,8 +49,6 @@ Keyboard shortcuts and Hotkeys:
 * N            - Select next filter
 * G            - Go to address (accepts expressions etc.)
 * S            - Toggle 'sync' on/off
-* F2           - Display help about current filter
-* F12          - Export current graph to disk
 
 Check out the official project site for updates:
 
@@ -791,14 +792,17 @@ class IDACyberForm(PluginForm):
         for entry in os.listdir(filterdir):
             if entry.lower().endswith('.py') and entry.lower() != '__init__.py':
                 mod = os.path.splitext(entry)[0]
-                filter = __import__(mod, globals(), locals(), [], 0)
-                filters.append((filter, filter.FILTER_INIT(pw)))
+                fmod = __import__(mod, globals(), locals(), [], 0)
+                if fmod is not None:
+                    flt = fmod.FILTER_INIT(pw)
+                    if flt is not None:
+                        filters.append((fmod, flt))
         return filters
 
     def _unload_filters(self):
-        for filter, obj in self.filterlist:
+        for fmod, obj in self.filterlist:
             obj.on_deactivate()
-            filter.FILTER_EXIT()
+            fmod.FILTER_EXIT()
 
     def _change_screen_ea(self):
         if self.pw.get_sync_state():
@@ -835,7 +839,17 @@ class IDACyberForm(PluginForm):
                 self.windowidx = i
                 break        
         return ida_kernwin.plgform_show(self.__clink__, self, caption, options)
-    
+
+    def OnClose(self, options):
+        if IDACyberForm.hook is not None:
+                IDACyberForm.hook.new_ea.disconnect(self._change_screen_ea)
+
+        IDACyberForm.windows.remove(self.windowidx)
+        self._unload_filters()
+        if not len(IDACyberForm.windows):
+            IDACyberForm.hook.unhook()
+            IDACyberForm.hook = None
+
     def OnCreate(self, form):
         self.form = form
         self.parent = self.FormToPyQtWidget(form)
@@ -889,13 +903,6 @@ class IDACyberForm(PluginForm):
         if IDACyberForm.hook is not None:
                 IDACyberForm.hook.new_ea.connect(self._change_screen_ea)
 
-    def OnClose(self, options):
-        IDACyberForm.windows.remove(self.windowidx)
-        self._unload_filters()
-        if not len(IDACyberForm.windows):
-            IDACyberForm.hook.unhook()
-            IDACyberForm.hook = None
-
 # -----------------------------------------------------------------------
 
 class IDACyberPlugin(plugin_t):
@@ -907,7 +914,7 @@ class IDACyberPlugin(plugin_t):
 
     def init(self):
         global banner
-        self.form = None
+        self.forms = []
         self.options = (PluginForm.WOPN_MENU |
             PluginForm.WOPN_ONTOP |
             PluginForm.WOPN_RESTORE |
@@ -918,12 +925,15 @@ class IDACyberPlugin(plugin_t):
         return PLUGIN_KEEP
 
     def run(self, arg):
-        self.form = IDACyberForm()
-        self.form.Show(None, options = self.options)
+        frm = IDACyberForm()
+        frm.Show(None, options = self.options)
+        self.forms.append(frm)
 
     def term(self):
-        if self.form is not None:
-            self.form.Close(options = self.options)
+        # sloppy. winows might have been closed / memory free'd
+        for frm in self.forms:
+            if frm:
+                frm.Close(options = self.options)
 
 # -----------------------------------------------------------------------
 

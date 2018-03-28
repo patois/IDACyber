@@ -1,7 +1,7 @@
 from PyQt5.QtGui import qRgb, QColor
 from idacyber import ColorFilter
 from PyQt5.QtCore import Qt
-from ida_dbg import get_ip_val, get_sp_val, DBG_Hooks, is_step_trace_enabled
+from ida_dbg import get_ip_val, get_sp_val, DBG_Hooks, is_step_trace_enabled, is_debugger_on, get_process_state
 from ida_bytes import get_item_size
 from ida_kernwin import register_timer, unregister_timer, warning, ask_yn
 
@@ -39,9 +39,10 @@ class DbgHook(DBG_Hooks):
 
     def _flash_cb(self):
         if self.pw:
-            # TODO: only if debugger is running
-            self.pw.on_filter_request_update()
-            self.highlighted = not self.highlighted
+            # if debugger is running and process is suspended
+            if is_debugger_on() and get_process_state() == -1:
+                self.pw.on_filter_request_update()
+                self.highlighted = not self.highlighted
         # timer will unregister itself if it returns -1
         return 200
 
@@ -99,8 +100,8 @@ class DbgHook(DBG_Hooks):
     """
 
 class Dbg(ColorFilter):
-    name = "Dbg"
-    help = "Example for on_filter_request_update() events."
+    name = "Debug"
+    help = "Example for on_filter_request_update() events.\nCan be used with step-tracing enabled."
     highlight_cursor = False
     sync = False
     zoom = 5
@@ -114,9 +115,8 @@ class Dbg(ColorFilter):
         return
 
     def on_activate(self, idx):
-        if self.hook is not None:
-            #unhook
-            pass
+        """if self.hook is not None:
+            pass"""
         self.hook = DbgHook(self.pw)
         self.hook.hook()
         return
