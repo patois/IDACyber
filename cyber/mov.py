@@ -56,9 +56,15 @@ class MovFilter(ColorFilter):
         return offs
 
     def on_get_annotations(self, address, size, mouse_offs):
-        caption = "Mov instructions:"
+        caption = "  Mov instructions:"
         spaces = 40*'-'
-        ann = [(None, None, caption, self.colormap[-1])]
+
+        cursor_ea = address + mouse_offs
+        head = get_item_head(cursor_ea)
+
+        ann = [(head, self.ptrcol, "%X:  %s" % (head, generate_disasm_line(head, GENDSM_FORCE_CODE | GENDSM_REMOVE_TAGS)), self.ptrcol),
+            (None, None, "", None),
+            (None, None, caption, self.colormap[0])]
         if len(self.annotations):
             i = 0
             offs = self._get_selection_offs()
@@ -69,7 +75,7 @@ class MovFilter(ColorFilter):
                 ann.append((ea, self.insn_colors[acc], "   %X:  %s" % (ea, generate_disasm_line(ea, GENDSM_FORCE_CODE | GENDSM_REMOVE_TAGS)), self.insn_colors[acc]))
                 i += 1
                 if i > self.threshold:
-                    ann.append((None, None, "<%d more not shown>" % (len(self.annotations) - i), self.colormap[-1]))
+                    ann.append((None, None, "  <%d more not shown>" % (len(self.annotations) - i), self.colormap[0]))
                     break
         return ann
 
