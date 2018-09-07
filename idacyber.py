@@ -1,6 +1,6 @@
 import os
 from PyQt5.QtWidgets import QWidget, QApplication, QCheckBox, QLabel, QComboBox, QSizePolicy, QVBoxLayout, QHBoxLayout
-from PyQt5.QtGui import QPainter, QColor, QFont, QPen, QPixmap, QImage, qRgb, QPainterPath
+from PyQt5.QtGui import QPainter, QColor, QFont, QPen, QPixmap, QImage, qRgb, QPainterPath, QStaticText
 from PyQt5.QtCore import Qt, QObject, pyqtSignal, QRect, QSize, QPoint
 from idaapi import *
 from ida_kernwin import msg
@@ -19,36 +19,44 @@ banner = """
 
 plugin_help = """
 IDACyber Quick Manual
--------------------------------------------------------------------
+====================================================================
 
-Using the mouse, drag the graph or use the mouse wheel
-to scroll through the database. Double clicking or
-having the 'sync' option enabled causes the current
-IDA viewer to be relocated to a new position.
+Controls:
+====================================================================
 
-Using the mouse while holding 'x' or 'h' on the
-keyboard allows the graph's width to be changed.
-The "ctrl" key can be used to zoom into the graph.
-Holding "shift" while dragging the graph changes the
-start offset.
+  Mouse controls:
+  ---------------
+* Click + drag            - Pan graph vertically
+* Click + SHIFT + drag    - Pan graph horizontally
+* Wheel                   - Pan graph vertically
+* Wheel + SHIFT           - Pan graph horizontally
+* Wheel + CTRL            - Zoom
+* Wheel + h               - Change width (in 8th steps)
+* Click + drag + h        - Change width (in 8th steps)
+* Wheel + x               - Change width (one step)
+* Click + drag + x        - Change width (one step)
 
-Keyboard shortcuts and Hotkeys:
--------------------------------------------------------------------
+  Keyboard controls:
+  ------------------
+* CTRL-F1                 - Display this help/quick manual
+* F2                      - Display help for current filter
+* F12                     - Export current graph to disk
 
-* CTRL-F1      - Display this help/quick manual
-* F2           - Display help about current filter
-* F12          - Export current graph to disk
+* UP                      - Pan up
+* DOWN                    - Pan down
+* UP + SHIFT              - Pan up (one step)
+* DOWN + SHIFT            - Pan down (one step)
+* PAGE UP                 - Pan up a 'page'
+* PAGE DOWN               - Pan down a 'page'
+* CTRL-PLUS               - Zoom in
+* CTRL-MINUS              - Zoom out
+* B                       - Select previous filter
+* N                       - Select next filter
+* G                       - Go to address (accepts expressions)
+* S                       - Toggle 'sync' setting
+* D                       - Switch between hex/ascii
+* T                       - Turn hex/ascii dump on/off
 
-* UP           - Scroll up
-* DOWN         - Scroll down
-* PAGE UP      - Scroll up a 'page'
-* PAGE DOWN    - Scroll down a 'page'
-* CTRL-PLUS    - Zoom in
-* CTRL-MINUS   - Zoom out
-* B            - Select previous filter
-* N            - Select next filter
-* G            - Go to address (accepts expressions etc.)
-* S            - Toggle 'sync' on/off
 
 Check out the official project site for updates:
 
@@ -60,7 +68,7 @@ https://github.com/patois/IDACyber
 #   TODO:
 #   * refactor
 #   * colorfilter: improve arrows/pointers
-#   * optimize redrawing?
+#   * optimizations
 #   * load filters using "require"
 #   * add grid?
 #   * use builtin Qt routines for scaling etc?
@@ -72,10 +80,7 @@ https://github.com/patois/IDACyber
 #   * implement color filter: apply recorded trace log to graph
 #   * implement color filter: colorize instructions/instruction groups
 #   * implement color filter: Entropy visualization
-#   * implement color filter: Clippy! :D
-#   * implement color filter: Snake? :D
 #   * fix Hubert (beatcounter functionality, frame adjustment)
-#   * forward keyrelease events to colorfilters?
 #   * draggable slider/scrollbar?
 
 
@@ -84,14 +89,15 @@ class ColorFilter():
     name = None
     highlight_cursor = True
     help = None
-    width = 64
+    width = 16
     sync = True
     lock_width = False
     lock_sync = False
     show_address_range = True
-    zoom = 3
+    zoom = 10
     link_pixel = True
     support_selection = False
+    disable_data = False
 
 
     def __init__(self, pw=None):
@@ -194,7 +200,7 @@ class PixelWidget(QWidget):
         super(PixelWidget, self).__init__()
 
         self.form = form
-        self.pixelSize = 3
+        self.set_zoom(10)
         self.maxPixelsPerLine = 64
         self.maxPixelsTotal = 0
         self.prev_mouse_y = 0
@@ -216,6 +222,10 @@ class PixelWidget(QWidget):
         self.lock_width = False
         self.lock_sync = False
         self.link_pixel = True
+        self.render_data = True
+        self.cur_formatter_idx = 1
+        self.max_formatters = 2
+
         
         self.setMouseTracking(True)        
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -231,11 +241,14 @@ class PixelWidget(QWidget):
 
     def paintEvent(self, event):
         # set leftmost x-coordinate of graph
-        self.rect_x_width = self.get_width() * self.pixelSize        
+        zoom_level = self.get_zoom()        
+        self.rect_x_width = self.get_width() * zoom_level       
         self.rect_x = (self.rect().width() / 2) - (self.rect_x_width / 2)
 
-        #qp = QPainter()
         self.qp.begin(self)
+
+        # what is a good default font for OSX/Linux?
+        self.qp.setFont(QFont("Consolas"))
 
         # fill background
         self.qp.fillRect(self.rect(), Qt.black)
@@ -251,10 +264,84 @@ class PixelWidget(QWidget):
         img = self.render_image(addr=content_addr, buf_size=content_size)
 
         if img:
+            """
+            if zoom_level > 6:
+                opacity = self.qp.opacity()
+                full_opacity_zoom = 40.0
+                cur_opacity = (1.0 - (full_opacity_zoom - float(min(zoom_level-1, full_opacity_zoom)))/full_opacity_zoom)
+                self.qp.setOpacity(1.0-cur_opacity)
+            """
             # draw image
             self.qp.drawImage(QRect(QPoint(self.rect_x, 0), 
-                QPoint(self.rect_x + self.get_width() * self.pixelSize, (self.get_pixels_total() / self.get_width()) * self.pixelSize)),
+                QPoint(self.rect_x + self.get_width() * zoom_level, (self.get_pixels_total() / self.get_width()) * zoom_level)),
                 img)
+
+            # data renderer
+            # TODO: pen color contrast
+            # TODO: data export: render data
+            # TODO: default fonts / OS?
+            # TODO: optimization
+            # FIXME: there's a bug with gaps/unmapped buffers
+            if self.render_data and not self.fm.disable_data and zoom_level > 6:
+                self.qp.setPen(QColor(Qt.white))
+                fontsize = self.qp.font().pointSize()
+                font = self.qp.font()
+
+                font.setPointSize(zoom_level/3)
+                self.qp.setFont(font)
+                
+                opacity = self.qp.opacity()
+                full_opacity_zoom = 28
+                cur_opacity = (1.0 - (full_opacity_zoom - float(min(zoom_level-1, full_opacity_zoom)))/full_opacity_zoom)
+                self.qp.setOpacity(cur_opacity)
+                
+                m = self.qp.fontMetrics()
+                x = y = 0
+                num_pixels_per_row = self.get_width()
+
+                if self.cur_formatter_idx == 0:
+                    sample = "%c" % (ord('X'))
+                    cwidth = m.width(sample)
+                    cheight = m.height()
+
+                    for mapped, buf in self.buffers:
+                        for i in range(len(buf)):
+                            if mapped:
+                                b = ord(buf[i])
+                                data = "%c" % (chr(b) if b in range(0x20, 0x7E) else ".")
+
+                                self.qp.drawStaticText(
+                                    self.rect_x + x*zoom_level + (zoom_level - cwidth)/2,
+                                    y*zoom_level + (zoom_level - cheight)/2,
+                                    QStaticText(data))
+
+                            x = (i + 1) % num_pixels_per_row
+                            if not x:
+                                y = y + 1
+
+                elif self.cur_formatter_idx == 1:
+                    sample = "%02X" % (ord('X'))
+                    cwidth = m.width(sample)
+                    cheight = m.height()
+
+                    for mapped, buf in self.buffers:
+                        for i in range(len(buf)):
+                            if mapped:
+                                data = "%02X" % ord(buf[i])                                
+
+                                self.qp.drawStaticText(
+                                    self.rect_x + x*zoom_level + (zoom_level - cwidth)/2,
+                                    y*zoom_level + (zoom_level - cheight)/2,
+                                    QStaticText(data))
+
+                            x = (i + 1) % num_pixels_per_row
+                            if not x:
+                                y = y + 1
+
+
+                self.qp.setOpacity(opacity)
+                font.setPointSize(fontsize)
+                self.qp.setFont(font)
 
         if self.show_address_range:
             self.render_slider(addr=content_addr, buf_size=content_size)
@@ -301,13 +388,15 @@ class PixelWidget(QWidget):
         self.qp.fillRect(slider_x, slider_y, slider_width, slider_height, QColor(0x404040))
 
         # draw addresses
-        #top = "%X:" % get_inf_structure().get_minEA()
-        #bottom = "%X:" % get_inf_structure().get_maxEA()
         top = '%X:' % self.get_address()
         bottom = '%X' % (self.get_address() + ((self.get_pixels_total() / self.get_width()) - 1) * self.get_width())
         self.qp.setPen(QColor(0x808080))
-        self.qp.drawText(self.rect_x - self.qp.fontMetrics().width(top) - bar_width - 2 * spaces_bar, self.qp.fontMetrics().height(), top)
-        self.qp.drawText(self.rect_x - self.qp.fontMetrics().width(bottom) - bar_width - 2 * spaces_bar, self.rect().height() - self.qp.fontMetrics().height() / 2, bottom)        
+        self.qp.drawText(self.rect_x - self.qp.fontMetrics().width(top) - bar_width - 2 * spaces_bar,
+            self.qp.fontMetrics().height(),
+            top)
+        self.qp.drawText(self.rect_x - self.qp.fontMetrics().width(bottom) - bar_width - 2 * spaces_bar,
+            self.rect().height() - self.qp.fontMetrics().height() / 2,
+            bottom)
         return
 
     def render_image(self, addr=None, buf_size=None, cursor=True):
@@ -330,12 +419,13 @@ class PixelWidget(QWidget):
                 if pix is None:
                     pix = transparency_dark[(x&2 != 0) ^ (y&2 != 0)]
             img.setPixel(x, y, pix)
+
             x = (x + 1) % self.get_width()
             if not x:
                 y = y + 1
 
         if len(pixels) != self.get_pixels_total():
-            for i in xrange(self.get_pixels_total()-len(pixels)):
+            for i in xrange(self.get_pixels_total() - len(pixels)):
                 pix = transparency_err[(x&2 != 0) ^ (y&2 != 0)]
                 img.setPixel(x, y, pix)
                 x = (x + 1) % self.get_width()
@@ -363,6 +453,7 @@ class PixelWidget(QWidget):
             self.qp.setPen(QColor(Qt.white if txt_color is None else txt_color))
             self.qp.drawText(base_x+10, (base_y+offs_y)/2, ann)
             target_x = target_y = None
+
             if coords:
                 if isinstance(coords, tuple):
                     target_x, target_y = coords
@@ -372,23 +463,33 @@ class PixelWidget(QWidget):
                         target_x, target_y = ptr
 
                 if target_x is not None and target_y is not None:
-                    target_x *= self.pixelSize
-                    target_y *= self.pixelSize
+                    target_x *= self.get_zoom()
+                    target_y *= self.get_zoom()
 
                     self.qp.setPen(QColor(Qt.white if arr_color is None else arr_color))
                     path = QPainterPath()
                     path.moveTo(base_x+offs_x, (base_y+offs_y)/2-base_y/2)
 
                     path.lineTo(base_x+offs_x - 4 - a_offs, (base_y+offs_y)/2-base_y/2)  # left
-                    path.lineTo(base_x+offs_x - 4 - a_offs, ((target_y/10)*9) + self.pixelSize/2) # down
-                    path.lineTo(self.rect_x + target_x + self.pixelSize / 2, ((target_y/10)*9) + self.pixelSize/2) # left
-                    path.lineTo(self.rect_x + target_x + self.pixelSize / 2, target_y + self.pixelSize/2) # down
+                    path.lineTo(base_x+offs_x - 4 - a_offs, ((target_y/10)*9) + self.get_zoom()/2) # down
+                    path.lineTo(self.rect_x + target_x + self.get_zoom() / 2, ((target_y/10)*9) + self.get_zoom()/2) # left
+                    path.lineTo(self.rect_x + target_x + self.get_zoom() / 2, target_y + self.get_zoom()/2) # down
                     a_offs = max(a_offs-2, 0)
                     self.qp.drawPath(path)
+                else:
+                    if not isinstance(coords, tuple):
+                        direction = self.get_target_direction(coords)
+                        if direction:
+                            m = self.qp.fontMetrics()
+                            dirhint = ['', '<<', '>>'][direction]
+                            cwidth = m.width("%s" % (dirhint))
+                            self.qp.drawText(base_x - cwidth, (base_y+offs_y)/2, dirhint)
+
             offs_y += 2*base_y + 5
         return
 
     # functions that can be called by filters
+    # must no be called from within on_process_buffer()
     def on_filter_request_update(self, ea=None, center=True):
         if not ea:
             self.repaint()
@@ -446,6 +547,14 @@ class PixelWidget(QWidget):
             if not self.fm.lock_sync:
                 self.set_sync_state(not self.get_sync_state())
                 update = True
+
+        elif key == Qt.Key_T:
+            self.render_data = not self.render_data
+            self.repaint()
+
+        elif key == Qt.Key_D:
+            self.cur_formatter_idx = (self.cur_formatter_idx + 1) % self.max_formatters
+            self.repaint()
 
         elif key == Qt.Key_N:
             self.next_filter.emit()
@@ -562,8 +671,8 @@ class PixelWidget(QWidget):
         elif self.key == Qt.Key_H:
             if not self.lock_width:
                 less = delta < 0
-                w = -16 if less else 16
-                self.set_width((self.get_width() & 0xFFFFFFF0) + w)
+                w = -8 if less else 8
+                self.set_width((self.get_width() & 0xFFFFFFF8) + w)
 
         # offset (coarse)
         else:
@@ -642,7 +751,8 @@ class PixelWidget(QWidget):
         self.set_width(self.fm.width)
         self.lock_sync = self.fm.lock_sync
         self.show_address_range = self.fm.show_address_range
-        self.set_zoom(self.fm.zoom)
+        # disabled for now
+        # self.set_zoom(self.fm.zoom)
         self.link_pixel = self.fm.link_pixel
         self.statechanged.emit()
         """load filter config end"""
@@ -688,6 +798,18 @@ class PixelWidget(QWidget):
             y = offs / (self.get_width())
             return (x, y)
         return None
+
+    def get_target_direction(self, address):
+        base = self.get_address()
+        # if address is visible in current window
+        direction = None
+        if address >= base and address < base + self.get_pixels_total():
+            direction = 0
+        elif address < base:
+            direction = 1
+        else:
+            direction = 2
+        return direction
 
     def set_width(self, width):
         self.maxPixelsPerLine = max(1, width)
@@ -930,7 +1052,7 @@ class IDACyberPlugin(plugin_t):
         self.forms.append(frm)
 
     def term(self):
-        # sloppy. winows might have been closed / memory free'd
+        # sloppy. windows might have been closed / memory free'd
         for frm in self.forms:
             if frm:
                 frm.Close(options = self.options)

@@ -13,8 +13,8 @@ class VROP(ColorFilter):
     name = "VisualROP"
     highlight_cursor = False
     help =  "Highlight return instructions.\n\nRMB toggles cyber mode."
-    zoom = 5
-    width = 32
+    zoom = 10
+    width = 16
 
     def __init__(self, pw):
         # "Dark Hope Color Palette" http://www.color-hex.com/color-palette/46221

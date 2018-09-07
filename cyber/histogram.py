@@ -24,6 +24,7 @@ class Histogram(ColorFilter):
     link_pixel = False
     support_selection = True
     highlight_cursor = False
+    disable_data = True
 
     def __init__(self, pw):
         self.pw = pw

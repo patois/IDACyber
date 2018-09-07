@@ -29,13 +29,14 @@ class DbgHook(DBG_Hooks):
 
     def _add_hit(self):
         ip = get_ip_val()
-        try:
-            data = self.hits[ip]
-            x = data[0]
-            if x <= self.maxhits:
-                data[0] = x + 1
-        except KeyError:
-            self.hits[ip] = [1, get_item_size(ip)]
+        if ip is not None:
+            try:
+                data = self.hits[ip]
+                x = data[0]
+                if x <= self.maxhits:
+                    data[0] = x + 1
+            except KeyError:
+                self.hits[ip] = [1, get_item_size(ip)]
 
     def _flash_cb(self):
         if self.pw:
@@ -155,7 +156,7 @@ class Dbg(ColorFilter):
                 ip = get_ip_val()
                 i = 0
                 while i < len(buf):
-                    if self.hook.highlighted and ip == addr + goffs + i:
+                    if ip is not None and ip == addr + goffs + i and self.hook.highlighted:
                         size = get_item_size(ip)
                         for j in xrange(size):
                             colors.append((True, qRgb(0xFF, 0x45, 0)))

@@ -14,7 +14,7 @@ class Crawl(ColorFilter):
 
     def __init__(self):
         self.hl_color = 100
-        self.switch = 1
+        self.switch = 0
         self.ann = None
         self.last_sel = None
         self.mode = ["Item length", "Functions"]

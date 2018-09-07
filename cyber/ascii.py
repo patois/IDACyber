@@ -44,18 +44,19 @@ class Ascii(ColorFilter):
                         last_offs = None
                         cur_len = 0
                     # bg color
-                    localcolors.append(qRgb(0x10, 0x10, 0x10))
+                    localcolors.append(0x101010)
 
                 for k, v in offsets.iteritems():
                     for i in xrange(v):
                             c = ord(buf[k+i])
+                            
                             b = c + (0xFF - 0x7E)
-                            if c >= 0x41 and c <= 0x5A or \
-                            c >= 0x61 and c <= 0x7A or \
-                            c >= 0x30 and c <= 0x39:
-                                localcolors[k+i] = qRgb(b, b, 0)
+                            if (c >= 0x41 and c <= 0x5A or
+                                    c >= 0x61 and c <= 0x7A or
+                                    c >= 0x30 and c <= 0x39):
+                                localcolors[k+i] = qRgb(b, b&0x7E, 0)
                             else:
-                                localcolors[k+i] = qRgb(b, 0, 0)
+                                localcolors[k+i] = qRgb(b&0x7E, b&0x7E, b&0x7E)
                 for color in localcolors:
                     colors.append((True, color))
             else:
