@@ -1,0 +1,258 @@
+from PyQt5.QtGui import qRgb, QColor
+from idacyber import ColorFilter
+from PyQt5.QtCore import Qt
+from ida_dbg import get_ip_val, get_sp_val, DBG_Hooks, is_step_trace_enabled, is_debugger_on, get_process_state
+from ida_bytes import get_item_size
+from ida_kernwin import register_timer, unregister_timer, warning, ask_yn
+from ida_funcs import get_func
+from ida_frame import frame_off_lvars, frame_off_savregs, frame_off_retaddr, get_frame, get_spd
+from ida_struct import get_struc_name, get_member_name, get_struc_size
+
+
+class StackyMcStackface(ColorFilter):
+    name = "Stacky McStackface"
+    help = """
+    Use during debugging sessions to inspect
+    the current stack frame.
+
+    Middle mouse button: cycle palettes
+    Right mouse button: toggle arrow"""
+    highlight_cursor = False
+    sync = False
+    lock_sync = True
+    zoom = 26
+    width = 8
+
+    def __init__(self, pw):
+        self.pw = pw
+        self.palettes = [[0x050f42, 0x084c61, 0x0d94a3, 0xd34410, 0xff6e00],
+                        [0x17313b, 0x414f47, 0x866d5c, 0xd5aaaa, 0xfff3e3],
+                        list(reversed([0xc8bd00, 0xa6aaa5, 0x8faebe, 0x005b95, 0x010e1f])),
+                        [0x100e15, 0x323e53, 0x408fb4, 0xbddfef, 0x64566e],
+                        [0x0d0e12, 0x073245, 0x4886af, 0x83c1e8, 0xfcd5ce],
+                        [0x010000, 0xa74c00, 0xffa100, 0xffd300, 0xf1f2f1],
+                        [0x421930, 0x7c1e3b, 0xb44346, 0xd88e6c, 0xf6e7ce],
+                        [0x002338, 0x009dd2, 0xffd898, 0xffca03, 0xa83a01],
+                        [0x050831, 0x133072, 0xd5e6f7, 0xd5adfb, 0xf90052],
+                        list(reversed([0x007f9f, 0x019c7c, 0x009f00, 0x006332, 0x001b00])),
+                        [0x00070a, 0x294552, 0x597884, 0xacc4ce, 0x9eb9b3]]
+        # default palette
+        self.cur_palette = -1
+        self.palette = self.palettes[self.cur_palette]
+        self.sp_arrow = True
+        self.hook = None
+        return
+
+    def on_mb_click(self, event, addr, size, mouse_offs):
+        button = event.button()
+        if button == Qt.MiddleButton:
+            self.cur_palette = (self.cur_palette + 1) % len(self.palettes)
+            self.palette = self.palettes[self.cur_palette]
+        if button == Qt.RightButton:
+            self.sp_arrow = not self.sp_arrow
+            self.palette = self.palettes[self.cur_palette]
+
+
+    def on_activate(self, idx):
+        self.hook = DbgHook(self.pw)
+        self.hook.hook()
+        self.hook._request_update_viewer()
+        return
+
+    def on_deactivate(self):
+        if self.hook is not None:
+            self.hook.disable_timer()
+            self.hook.unhook()
+            self.hook = None
+        return
+
+    def on_get_annotations(self, address, size, mouse_offs):
+        annotations = []
+        sp = get_sp_val()
+        ip = get_ip_val()
+        fi = FrameInfo()
+
+        if sp and ip:
+            arrow = sp if self.sp_arrow else None
+            frame_start_ea = fi.ea
+            annotations.append((None, None, "Frame: 0x%X" % (frame_start_ea), self.palette[1]))
+            annotations.append((arrow, self.palette[4], "SP: %X" % (sp), self.palette[4]))
+            sp_boundaries = fi.get_element_boundaries(sp)
+            if sp_boundaries and len(fi.members):
+                start, end = sp_boundaries
+                name, offs, msize, foffs = fi.members[start]
+                annotations.append((None,  None, "=> %s" % (name), self.palette[4]))
+
+            if mouse_offs and len(fi.members):
+                mouse_boundaries = fi.get_element_boundaries(address+mouse_offs)
+                if mouse_boundaries:
+                    start, end = mouse_boundaries
+                    name, offs, msize, foffs = fi.members[start]
+                    # "dist" is the distance from current variable to
+                    # end of stack frame this is where a return address
+                    # may be stored depending on the CPU architecture
+                    dist = foffs-offs
+                    
+                    # address of frame member in memory
+                    var_addr = frame_start_ea+offs
+
+                    # add annotations
+                    annotations.append((None, None, "", None))
+                    annotations.append((None, None, "Cursor: %s+0x%X" % (name,
+                        address + mouse_offs - (frame_start_ea+offs)),
+                        self.palette[3]))
+                    annotations.append((None, None, "Var: %s" % (name), self.palette[3]))
+                    annotations.append((None, None, "Addr: 0x%X" % (var_addr), self.palette[3]))
+                    annotations.append((None, None, "Offs: Frame+0x%X" % (offs), self.palette[3]))
+                    annotations.append((None, None, "Size: 0x%X" % (msize), self.palette[3]))
+                    annotations.append((None, None, "Distance: %s0x%X" % ("-" if dist < 0 else "",
+                        abs(dist)), self.palette[3]))
+        else:
+            annotations.append((None, None, "Debugger inactive", self.palette[4]))
+
+        return annotations
+
+    def on_process_buffer(self, buffers, addr, total, mouse_offs):
+        colors = []
+        goffs = 0
+        mouse_boundaries = None
+
+        sp = get_sp_val()
+        ip = get_ip_val()
+        fi = FrameInfo()
+
+        if mouse_offs is not None:
+            mouse_boundaries = fi.get_element_boundaries(addr+mouse_offs)
+
+        for mapped, buf in buffers:
+            if mapped:
+                i = 0
+                while i < len(buf):
+                    # highlight stack var pointed to by mouse
+                    if mouse_offs and mouse_boundaries:
+                        start, end = mouse_boundaries
+
+                        if addr + goffs + i in xrange(start, end):
+                            size = min(end - start, total-i)
+                            for j in xrange(size):
+                                colors.append((True, self.palette[3]))
+                            i += size
+                            continue
+                    # flash sp
+                    if sp is not None and self.hook.highlighted and sp == addr + goffs + i:
+                        size = get_item_size(sp)
+                        boundaries = fi.get_element_boundaries(sp)
+                        if boundaries:
+                            start, end = boundaries
+                            size = min(end - start, total-i)
+                        for j in xrange(size):
+                            colors.append((True, self.palette[4]))
+                        i += size
+                        continue
+                    # locals
+                    if goffs + addr + i in xrange(fi.ea, fi.ea + fi.framesize):
+                        size = 1
+                        boundaries = fi.get_element_boundaries(goffs + addr + i)
+                        if boundaries: # if anything on the stackframe
+                            start, end = boundaries
+                            size = min(end - start, total-i)
+                            for j in xrange(size):
+                                colors.append((True, self.palette[2]))
+                            i += size
+                            continue
+                        else: #gap between locals
+                            colors.append((True, self.palette[1]))
+                            i += 1
+                            continue
+
+                    # default bg color
+                    colors.append((True, self.palette[0]))
+                    i += 1
+
+            # unmapped, transparency
+            else:
+                for i in xrange(len(buf)):
+                    colors.append((False, None))
+            goffs += len(buf)
+        
+        return colors
+    
+def FILTER_INIT(pw):
+    return StackyMcStackface(pw)
+
+def FILTER_EXIT():
+    return
+
+class FrameInfo:
+    def __init__(self):
+        self.members = {}
+        self.framesize = 0
+        self.ea = 0
+        self._get_frame()
+
+    def _get_frame(self):
+        result = False
+        sp = get_sp_val()
+        ip = get_ip_val()
+
+        if ip and sp:
+            f = get_func(ip)
+            if f:
+                frame = get_frame(f)
+                if frame:
+                    self.framesize = get_struc_size(frame)
+                    n = frame.memqty
+                    frame_offs = f.frregs + f.frsize
+                    self.ea = sp - get_spd(f, ip) - frame_offs
+                    for i in xrange(n):
+                        m = frame.get_member(i)
+                        if m:
+                            lvar_name = get_member_name(m.id)
+                            lvar_ea = self.ea + m.soff
+                            lvar_size = m.eoff - m.soff
+                            self.members[lvar_ea] = (lvar_name, m.soff, lvar_size, frame_offs)
+                    result = True
+        return result
+
+    def get_element_boundaries(self, addr):
+        for ea, data in self.members.iteritems():
+            name, offs, size, foffs = data
+            if addr in xrange(ea, ea+size):
+                return (ea, ea+size)
+        return None
+
+class DbgHook(DBG_Hooks):
+    def __init__(self, pw):
+        self.pw = pw
+        self.timer = None
+        self.highlighted = True
+        self.enable_timer()
+        DBG_Hooks.__init__(self)
+
+    def enable_timer(self):
+        self.disable_timer()
+        self.timer = register_timer(300, self._flash_cb)
+        return
+
+    def disable_timer(self):
+        if self.timer:
+            unregister_timer(self.timer)
+            self.timer = None
+        return
+
+    def _flash_cb(self):
+        if self.pw:
+            # if debugger is running and process is suspended
+            if is_debugger_on() and get_process_state() == -1:
+                self.pw.on_filter_request_update()
+                self.highlighted = not self.highlighted
+        return 300
+
+    def _request_update_viewer(self, sp=None):
+        _sp = sp if sp else get_sp_val()
+        if self.pw:
+            self.pw.on_filter_request_update(_sp, center=True)
+
+    def dbg_suspend_process(self):
+        self._request_update_viewer()
+        return 0

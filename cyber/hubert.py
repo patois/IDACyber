@@ -194,8 +194,8 @@ class Hubert(ColorFilter):
     highlight_cursor = False
     width = 16
     lock_width = True
-    sync = False
-    lock_sync = True
+    sync = True
+    lock_sync = False
     show_address_range = False
     zoom = 8
     link_pixel = False
