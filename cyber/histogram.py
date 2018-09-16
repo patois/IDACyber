@@ -1,20 +1,19 @@
-from PyQt5.QtGui import qRgb
-from PyQt5.QtCore import Qt
-from idacyber import ColorFilter
 from math import log
+from idacyber import ColorFilter
+import ida_kernwin
 
 # http://www.color-hex.com/color-palette/54234
 
 # taken from http://blog.dkbza.org/2007/05/scanning-data-for-entropy-anomalies.html
 def H(data):
-  if not data:
-    return 0
-  entropy = 0
-  for x in range(256):
-    p_x = float(data.count(chr(x)))/len(data)
-    if p_x > 0:
-      entropy += - p_x*log(p_x, 2)
-  return entropy
+    if not data:
+        return 0
+    entropy = 0
+    for x in range(256):
+        p_x = float(data.count(chr(x)))/len(data)
+        if p_x > 0:
+            entropy += - p_x*log(p_x, 2)
+    return entropy
 
 class Histogram(ColorFilter):
     name = "Histogram"
@@ -26,18 +25,16 @@ class Histogram(ColorFilter):
     highlight_cursor = False
     disable_data = True
 
-    def __init__(self, pw):
-        self.pw = pw
+    def __init__(self):
         self.entropy = 0.0
         self.max_count = 0
         self.hist = []
         self.bufsize = 0
 
     def on_get_annotations(self, address, size, mouse_offs):
-        width = Histogram.width
-        cursor_x = mouse_offs % width
+        cursor_x = mouse_offs % Histogram.width
         annotations = None
-        if self.bufsize:
+        if self.bufsize and cursor_x in xrange(len(self.hist)):
             count = self.hist[cursor_x]
             annotations = [(None, None, 'Start: 0x%X' % address, 0xf2f0f0),
             (None, None, 'End: 0x%X' % (address+self.bufsize), 0xf2f0f0),
@@ -65,7 +62,7 @@ class Histogram(ColorFilter):
         self.max_count = max(self.hist)
         cursor_x = mouse_offs % width
 
-        if self.max_count > 0 and height > 0:
+        if self.max_count and height:
             bars = []
             for i in xrange(len(self.hist)):
                 count = self.hist[i]
@@ -86,9 +83,8 @@ class Histogram(ColorFilter):
 
         return tooltip
 
-
 def FILTER_INIT(pw):
-    return Histogram(pw)
+    return Histogram()
     
 def FILTER_EXIT():
     return

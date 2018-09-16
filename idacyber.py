@@ -1,8 +1,12 @@
 import os
+import sys
 
-from idaapi import *
-from ida_kernwin import msg, is_idaq
-from ida_diskio import idadir
+#from idaapi import *
+import ida_kernwin
+import ida_diskio
+import ida_bytes
+import ida_segment
+import ida_idaapi
 
 from PyQt5.QtWidgets import QWidget, QApplication, QCheckBox, QLabel, QComboBox, QSizePolicy, QVBoxLayout, QHBoxLayout
 from PyQt5.QtGui import QPainter, QColor, QFont, QPen, QPixmap, QImage, qRgb, QPainterPath, QStaticText
@@ -88,6 +92,8 @@ https://github.com/patois/IDACyber
 #   * fix Hubert (beatcounter functionality, frame adjustment)
 #   * draggable slider/scrollbar?
 
+# I believe this is Windows-only?
+FONT_DEFAULT = "Consolas"
 
 class ColorFilter():
     """every new color filters must inherit this class"""
@@ -135,9 +141,9 @@ class ColorFilter():
 
 # -----------------------------------------------------------------------
 
-class ScreenEAHook(View_Hooks):
+class ScreenEAHook(ida_kernwin.View_Hooks):
     def __init__(self):
-        View_Hooks.__init__(self)
+        ida_kernwin.View_Hooks.__init__(self)
         self.sh = SignalHandler()
         self.new_ea = self.sh.ida_newea
     
@@ -165,7 +171,7 @@ class IDBBufHandler():
         i = 0
         base = offs = 0
 
-        result = get_bytes_and_mask(ea, count)
+        result = ida_bytes.get_bytes_and_mask(ea, count)
         if result:
             buf, mask = result
             for m in xrange(len(mask)):
@@ -188,15 +194,14 @@ class IDBBufHandler():
         return buffers
 
     def get_base(self, ea):
-        base = BADADDR
-        qty = get_segm_qty()
+        base = ida_idaapi.BADADDR
+        qty = ida_segment.get_segm_qty()
         for i in xrange(qty):
-            seg = getnseg(i)
+            seg = ida_segment.getnseg(i)
             if seg and seg.contains(ea):
                 base = seg.startEA
                 break
         return base
-        
 
 # -----------------------------------------------------------------------
     
@@ -231,7 +236,6 @@ class PixelWidget(QWidget):
         self.cur_formatter_idx = 1
         self.max_formatters = 2
 
-        
         self.setMouseTracking(True)        
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
@@ -245,6 +249,8 @@ class PixelWidget(QWidget):
         self.show()
 
     def paintEvent(self, event):
+        global FONT_DEFAULT
+
         # set leftmost x-coordinate of graph
         zoom_level = self.get_zoom()        
         self.rect_x_width = self.get_width() * zoom_level       
@@ -253,14 +259,14 @@ class PixelWidget(QWidget):
         self.qp.begin(self)
 
         # what is a good default font for OSX/Linux?
-        self.qp.setFont(QFont("Consolas"))
+        self.qp.setFont(QFont(FONT_DEFAULT))
 
         # fill background
         self.qp.fillRect(self.rect(), Qt.black)
 
         content_addr = content_size = None
         if self.fm.support_selection:
-            selected, start, end = read_range_selection(None)
+            selected, start, end = ida_kernwin.read_range_selection(None)
             if selected:
                 content_addr = start
                 content_size = end-start
@@ -364,8 +370,8 @@ class PixelWidget(QWidget):
             addr = self.base + self.offs
             buf_size = self.get_pixels_total()
 
-        lowest_ea = get_inf_structure().get_minEA()
-        highest_ea = get_inf_structure().get_maxEA()
+        lowest_ea = ida_idaapi.get_inf_structure().get_minEA()
+        highest_ea = ida_idaapi.get_inf_structure().get_maxEA()
         start_offs = addr - lowest_ea
         addr_space = highest_ea - lowest_ea
 
@@ -542,10 +548,10 @@ class PixelWidget(QWidget):
             addr = ask_addr(self.base + self.offs, 'Jump to address')
             if addr is not None:
                 if self.sync:
-                    jumpto(addr)
+                    ida_kernwin.jumpto(addr)
                 else:
-                    minea = get_inf_structure().get_minEA()
-                    maxea = get_inf_structure().get_maxEA()
+                    minea = ida_idaapi.get_inf_structure().get_minEA()
+                    maxea = ida_idaapi.get_inf_structure().get_maxEA()
                     dst = min(max(addr, minea), maxea)
                     self.set_addr(dst)
 
@@ -583,13 +589,13 @@ class PixelWidget(QWidget):
                 fname = 'IDACyber_%04d.bmp' % i
                 if not os.path.isfile(fname):
                     if img.save(fname):
-                        msg('File exported to %s\n' % fname)
+                        ida_kernwin.msg('File exported to %s\n' % fname)
                     else:
-                        warning('Error exporting screenshot to %s.' % fname)
+                        ida_kernwin.warning('Error exporting screenshot to %s.' % fname)
                     done = True
                 i += 1
                 if i > 40:
-                    warning('Aborted. Error exporting screenshot.')
+                    ida_kernwin.warning('Aborted. Error exporting screenshot.')
                     break
 
         elif key == Qt.Key_PageDown:
@@ -628,20 +634,20 @@ class PixelWidget(QWidget):
 
         if update:
             if self.get_sync_state():
-                jumpto(self.base + self.offs)
+                ida_kernwin.jumpto(self.base + self.offs)
                 self.activateWindow()
                 self.setFocus()
             self.statechanged.emit()
             self.repaint()
 
         return
-        
+
     def mouseReleaseEvent(self, event):
         self.prev_mouse_y = event.pos().y()
         self.fm.on_mb_click(event, self.get_address(), self.get_pixels_total(), self.mouseOffs)
         
         if self.get_sync_state():
-            jumpto(self.base + self.offs)
+            ida_kernwin.jumpto(self.base + self.offs)
             self.activateWindow()
             self.setFocus()
             self.statechanged.emit()
@@ -650,7 +656,7 @@ class PixelWidget(QWidget):
     def mouseDoubleClickEvent(self, event):
         if self.link_pixel and event.button() == Qt.LeftButton:
             addr = self.base + self.offs + self._get_offs_by_pos(event.pos())
-            jumpto(addr)
+            ida_kernwin.jumpto(addr)
         return
 
     def wheelEvent(self, event):
@@ -670,7 +676,7 @@ class PixelWidget(QWidget):
             self.set_offset_delta(delta)
 
             if self.get_sync_state():
-                jumpto(self.base + self.offs)
+                ida_kernwin.jumpto(self.base + self.offs)
                 self.activateWindow()
                 self.setFocus()
 
@@ -685,7 +691,7 @@ class PixelWidget(QWidget):
             self.set_offset_delta(delta * self.get_width())
             
             if self.get_sync_state():
-                jumpto(self.base + self.offs)
+                ida_kernwin.jumpto(self.base + self.offs)
                 self.activateWindow()
                 self.setFocus()
 
@@ -746,10 +752,10 @@ class PixelWidget(QWidget):
     def get_filter_idx(self):
         return self.filter_idx
     
-    def set_filter(self, filter, idx):
+    def set_filter(self, fltobj, idx):
         if self.fm:
             self.fm.on_deactivate()
-        self.fm = filter
+        self.fm = fltobj
 
         """load filter config"""
         self.set_sync_state(self.fm.sync)
@@ -825,8 +831,8 @@ class PixelWidget(QWidget):
 
     def set_offset_delta(self, doffs):
         newea = self.base + self.offs - doffs
-        minea = get_inf_structure().get_minEA()
-        maxea = get_inf_structure().get_maxEA()
+        minea = ida_idaapi.get_inf_structure().get_minEA()
+        maxea = ida_idaapi.get_inf_structure().get_maxEA()
         if doffs < 0:
             delta = doffs if newea < maxea else doffs - (maxea - newea)
         else:
@@ -860,11 +866,9 @@ class PixelWidget(QWidget):
     def _set_base(self, ea):
         self.base = ea
 
-
 # -----------------------------------------------------------------------
 
-
-class IDACyberForm(PluginForm):
+class IDACyberForm(ida_kernwin.PluginForm):
     idbh = None
     hook = None
     windows = []
@@ -888,7 +892,7 @@ class IDACyberForm(PluginForm):
         self.pw = None
         self.parent = None
         self.form = None
-                
+
     def _update_widget(self):
         lbl_address = 'Address '
         lbl_cursor = 'Cursor '
@@ -914,7 +918,7 @@ class IDACyberForm(PluginForm):
         self.status.setText(status_text)
 
     def _load_filters(self, pw):
-        filterdir = os.path.join(idadir('plugins'), 'cyber')
+        filterdir = os.path.join(ida_diskio.idadir('plugins'), 'cyber')
         sys.path.append(filterdir)
         filters = []
         for entry in os.listdir(filterdir):
@@ -934,7 +938,7 @@ class IDACyberForm(PluginForm):
 
     def _change_screen_ea(self):
         if self.pw.get_sync_state():
-            ea = get_screen_ea()
+            ea = ida_kernwin.get_screen_ea()
             self.pw.set_addr(ea)
             # TODO
             self._update_widget()
@@ -988,7 +992,6 @@ class IDACyberForm(PluginForm):
         hl3 = QHBoxLayout()
         hl4 = QHBoxLayout()
 
-
         flt = QLabel()  
         flt.setText('Filter:')
         hl.addWidget(flt)
@@ -1004,7 +1007,7 @@ class IDACyberForm(PluginForm):
 
         self.pw = PixelWidget(self.parent, IDACyberForm.idbh)
         self.pw.setFocusPolicy(Qt.StrongFocus | Qt.WheelFocus)
-        
+
         self.pw.statechanged.connect(self._update_widget)
         self.pw.next_filter.connect(self._select_next_filter)
         self.pw.prev_filter.connect(self._select_prev_filter)
@@ -1012,7 +1015,7 @@ class IDACyberForm(PluginForm):
         self.filterlist = self._load_filters(self.pw)
 
         self.pw.set_filter(self.filterlist[0][1], 0)
-        self.pw.set_addr(get_screen_ea())
+        self.pw.set_addr(ida_kernwin.get_screen_ea())
 
         self.filterChoser = QComboBox()
         self.filterChoser.addItems([obj.name for filter, obj in self.filterlist])
@@ -1033,7 +1036,12 @@ class IDACyberForm(PluginForm):
 
 # -----------------------------------------------------------------------
 
-class IDACyberPlugin(plugin_t):
+def get_ida_version():
+    ver = ida_kernwin.get_kernel_version().split(".")
+    major, minor = ver
+    return ((int(major), int(minor)))
+
+class IDACyberPlugin(ida_idaapi.plugin_t):
     flags = 0
     comment = ''
     help = ''
@@ -1041,16 +1049,20 @@ class IDACyberPlugin(plugin_t):
     wanted_hotkey = 'Ctrl-Shift-C'
 
     def init(self):
+        major, minor = get_ida_version()
+        if major < 7:
+            return ida_idaapi.PLUGIN_SKIP
+
         global banner
         self.forms = []
-        self.options = (PluginForm.WOPN_MENU |
-            PluginForm.WOPN_ONTOP |
-            PluginForm.WOPN_RESTORE |
-            PluginForm.FORM_SAVE |
-            PluginForm.WOPN_PERSIST |
-            PluginForm.WCLS_CLOSE_LATER)
-        msg('%s' % banner)
-        return PLUGIN_KEEP
+        self.options = (ida_kernwin.PluginForm.WOPN_MENU |
+            ida_kernwin.PluginForm.WOPN_ONTOP |
+            ida_kernwin.PluginForm.WOPN_RESTORE |
+            ida_kernwin.PluginForm.FORM_SAVE |
+            ida_kernwin.PluginForm.WOPN_PERSIST |
+            ida_kernwin.PluginForm.WCLS_CLOSE_LATER)
+        ida_kernwin.msg('%s' % banner)
+        return ida_idaapi.PLUGIN_KEEP
 
     def run(self, arg):
         frm = IDACyberForm()
