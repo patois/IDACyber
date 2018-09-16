@@ -3,7 +3,7 @@ from idacyber import ColorFilter
 from PyQt5.QtCore import Qt
 from ida_dbg import get_ip_val, get_sp_val, DBG_Hooks, is_step_trace_enabled, is_debugger_on, get_process_state
 from ida_bytes import get_item_size
-from ida_kernwin import register_timer, unregister_timer, warning, ask_yn
+from ida_kernwin import register_timer, unregister_timer, warning, ask_yn, get_kernel_version
 
 class DbgHook(DBG_Hooks):
     def __init__(self, pw):
@@ -72,33 +72,6 @@ class DbgHook(DBG_Hooks):
         self._add_hit()
         self._request_update_ip_view()
         return 0
-
-    """
-    def dbg_step_until_ret(self):
-        self.add_hit()
-        self.request_update_ip_view()
-        return 0
-
-    def dbg_run_to(self, pid, tid, ea):
-        self.add_hit()
-        self.request_update_ip_view()
-        return 0
-
-    def dbg_bpt(self, tid, bptea):
-        self.add_hit()
-        self.request_update_ip_view()
-        return 0
-
-    def dbg_step_into(self):
-        self.add_hit()
-        self.request_update_ip_view()
-        return 0
-
-    def dbg_step_over(self):
-        self.add_hit()
-        self.request_update_ip_view()
-        return 0
-    """
 
 class Dbg(ColorFilter):
     name = "Debug"
@@ -182,9 +155,17 @@ class Dbg(ColorFilter):
                     colors.append((False, None))
             goffs += len(buf)
         return colors
+
+def get_ida_version():
+    ver = get_kernel_version().split(".")
+    major, minor = ver
+    return ((int(major), int(minor)))
     
 def FILTER_INIT(pw):
-    return Dbg(pw)
+    major, minor = get_ida_version()
+    if major >= 7 and minor > 0:
+        return Dbg(pw)
+    return None
 
 def FILTER_EXIT():
     return

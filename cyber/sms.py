@@ -3,8 +3,8 @@ from idacyber import ColorFilter
 from PyQt5.QtCore import Qt
 from ida_dbg import get_ip_val, get_sp_val, DBG_Hooks, is_step_trace_enabled, is_debugger_on, get_process_state
 from ida_bytes import get_item_size
-from ida_kernwin import register_timer, unregister_timer, warning, ask_yn
-from ida_funcs import get_func
+from ida_kernwin import register_timer, unregister_timer, warning, ask_yn, get_kernel_version
+from ida_funcs import get_func, get_func_name
 from ida_frame import frame_off_lvars, frame_off_savregs, frame_off_retaddr, get_frame, get_spd
 from ida_struct import get_struc_name, get_member_name, get_struc_size
 
@@ -15,8 +15,13 @@ class StackyMcStackface(ColorFilter):
     Use during debugging sessions to inspect
     the current stack frame.
 
+    Controls:
     Middle mouse button: cycle palettes
-    Right mouse button: toggle arrow"""
+    Right mouse button: toggle arrow
+
+    Use IDACyber controls to navigate
+    through memory (CTRL-F1 for help)
+    """
     highlight_cursor = False
     sync = False
     lock_sync = True
@@ -75,13 +80,21 @@ class StackyMcStackface(ColorFilter):
         if sp and ip:
             arrow = sp if self.sp_arrow else None
             frame_start_ea = fi.ea
-            annotations.append((None, None, "Frame: 0x%X" % (frame_start_ea), self.palette[1]))
-            annotations.append((arrow, self.palette[4], "SP: %X" % (sp), self.palette[4]))
+            funcname = get_func_name(ip)
+
+            annotations.append((None, None, "", None))
+            annotations.append((arrow, self.palette[4], "[Stack Pointer]", self.palette[1]))
+            annotations.append((None, None, " address: 0x%x" % (sp), self.palette[3]))
             sp_boundaries = fi.get_element_boundaries(sp)
             if sp_boundaries and len(fi.members):
                 start, end = sp_boundaries
                 name, offs, msize, foffs = fi.members[start]
-                annotations.append((None,  None, "=> %s" % (name), self.palette[4]))
+                annotations.append((None,  None, " points to: %s" % (name), self.palette[3]))
+
+            annotations.append((None, None, "", None))
+            annotations.append((None, None, "[Function]", self.palette[1]))
+            annotations.append((None, None, " name: %s" % (funcname), self.palette[3]))
+            annotations.append((None, None, " frame addr: 0x%x" % (frame_start_ea), self.palette[3]))
 
             if mouse_offs and len(fi.members):
                 mouse_boundaries = fi.get_element_boundaries(address+mouse_offs)
@@ -98,15 +111,19 @@ class StackyMcStackface(ColorFilter):
 
                     # add annotations
                     annotations.append((None, None, "", None))
-                    annotations.append((None, None, "Cursor: %s+0x%X" % (name,
+                    annotations.append((None, None, "[Frame Member]", self.palette[1]))
+                    annotations.append((None, None, " name: %s" % (name), self.palette[3]))
+                    annotations.append((None, None, " addr: 0x%x" % (var_addr), self.palette[3]))
+                    annotations.append((None, None, " offs: Frame+0x%x" % (offs), self.palette[3]))
+                    annotations.append((None, None, " size: 0x%x" % (msize), self.palette[3]))
+                    annotations.append((None, None, " distance: %s0x%x" % ("-" if dist < 0 else "",
+                        abs(dist)), self.palette[3]))
+                    annotations.append((None, None, " cursor: %s+0x%x" % (name,
                         address + mouse_offs - (frame_start_ea+offs)),
                         self.palette[3]))
-                    annotations.append((None, None, "Var: %s" % (name), self.palette[3]))
-                    annotations.append((None, None, "Addr: 0x%X" % (var_addr), self.palette[3]))
-                    annotations.append((None, None, "Offs: Frame+0x%X" % (offs), self.palette[3]))
-                    annotations.append((None, None, "Size: 0x%X" % (msize), self.palette[3]))
-                    annotations.append((None, None, "Distance: %s0x%X" % ("-" if dist < 0 else "",
-                        abs(dist)), self.palette[3]))
+
+
+
         else:
             annotations.append((None, None, "Debugger inactive", self.palette[4]))
 
@@ -176,9 +193,18 @@ class StackyMcStackface(ColorFilter):
             goffs += len(buf)
         
         return colors
+
+def get_ida_version():
+    ver = get_kernel_version().split(".")
+    major, minor = ver
+    return ((int(major), int(minor)))
+
     
 def FILTER_INIT(pw):
-    return StackyMcStackface(pw)
+    major, minor = get_ida_version()
+    if major >= 7 and minor > 0:
+        return StackyMcStackface(pw)
+    return None
 
 def FILTER_EXIT():
     return

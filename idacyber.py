@@ -1,9 +1,13 @@
 import os
+
+from idaapi import *
+from ida_kernwin import msg, is_idaq
+from ida_diskio import idadir
+
 from PyQt5.QtWidgets import QWidget, QApplication, QCheckBox, QLabel, QComboBox, QSizePolicy, QVBoxLayout, QHBoxLayout
 from PyQt5.QtGui import QPainter, QColor, QFont, QPen, QPixmap, QImage, qRgb, QPainterPath, QStaticText
 from PyQt5.QtCore import Qt, QObject, pyqtSignal, QRect, QSize, QPoint
-from idaapi import *
-from ida_kernwin import msg
+
 
 __author__ = 'Dennis Elser'
 
@@ -35,6 +39,7 @@ Controls:
 * Click + drag + h        - Change width (in 8th steps)
 * Wheel + x               - Change width (one step)
 * Click + drag + x        - Change width (one step)
+* Double click            - Jump to address under cursor
 
   Keyboard controls:
   ------------------
@@ -480,6 +485,7 @@ class PixelWidget(QWidget):
                     if not isinstance(coords, tuple):
                         direction = self.get_target_direction(coords)
                         if direction:
+                            self.qp.setPen(QColor(Qt.white if arr_color is None else arr_color))
                             m = self.qp.fontMetrics()
                             dirhint = ['', '<<', '>>'][direction]
                             cwidth = m.width("%s" % (dirhint))

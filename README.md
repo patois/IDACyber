@@ -5,9 +5,11 @@
 
 IDACyber is an interactive data visualization plugin for IDA Pro.
 
+Be sure to check out the ![gallery](/gallery/ "gallery")
+
 ### Requirements
 
-* IDA Pro 7.x
+* IDA (Qt) >= 7.0
 
 ### Installation
 
