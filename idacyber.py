@@ -1,15 +1,16 @@
 import os
 import sys
 
-#from idaapi import *
 import ida_kernwin
 import ida_diskio
 import ida_bytes
 import ida_segment
 import ida_idaapi
 
-from PyQt5.QtWidgets import QWidget, QApplication, QCheckBox, QLabel, QComboBox, QSizePolicy, QVBoxLayout, QHBoxLayout
-from PyQt5.QtGui import QPainter, QColor, QFont, QPen, QPixmap, QImage, qRgb, QPainterPath, QStaticText
+from PyQt5.QtWidgets import (QWidget, QApplication, QCheckBox, QLabel,
+    QComboBox, QSizePolicy, QVBoxLayout, QHBoxLayout)
+from PyQt5.QtGui import (QPainter, QColor, QFont, QPen,
+    QPixmap, QImage, qRgb, QPainterPath, QStaticText)
 from PyQt5.QtCore import Qt, QObject, pyqtSignal, QRect, QSize, QPoint
 
 

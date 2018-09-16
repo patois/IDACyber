@@ -1,13 +1,142 @@
 from PyQt5.QtGui import qRgb, QColor
 from idacyber import ColorFilter
 from PyQt5.QtCore import Qt
-from ida_dbg import get_ip_val, get_sp_val, DBG_Hooks, is_step_trace_enabled, is_debugger_on, get_process_state
+from ida_idd import regval_t 
+from ida_dbg import (get_reg_val, get_ip_val, get_sp_val,
+    DBG_Hooks, is_step_trace_enabled,
+    is_debugger_on, get_process_state)
 from ida_bytes import get_item_size
-from ida_kernwin import register_timer, unregister_timer, warning, ask_yn, get_kernel_version
+from ida_kernwin import (register_timer, unregister_timer,
+    warning, ask_yn, get_kernel_version)
 from ida_funcs import get_func, get_func_name
-from ida_frame import frame_off_lvars, frame_off_savregs, frame_off_retaddr, get_frame, get_spd
-from ida_struct import get_struc_name, get_member_name, get_struc_size
+from ida_frame import (frame_off_lvars, frame_off_savregs,
+    frame_off_retaddr, get_frame, get_spd)
+from ida_struct import (get_struc_name, get_member_name,
+    get_struc_size)
+from ida_idaapi import get_inf_structure
 
+def get_ida_version():
+    ver = get_kernel_version().split(".")
+    major, minor = ver
+    return ((int(major), int(minor)))
+
+# workaround for IDA7.0
+def is_ida70():
+    major, minor = get_ida_version()
+    return major == 7 and minor == 0
+
+def _get_sp_val():
+    inf = get_inf_structure()
+    proc_name = inf.procName.lower()
+    regname = ""
+    if proc_name == "metapc":
+        if inf.is_64bit():
+            regname = "rsp"
+        elif inf.is_32bit():
+            regname = "esp"
+        else:
+            regname = "sp"
+    elif proc_name == "arm":
+        regname = "sp"
+    rv = regval_t()
+    if get_reg_val(regname, rv):
+        return rv.ival
+    return None
+
+def _get_ip_val():
+    inf = get_inf_structure()
+    proc_name = inf.procName.lower()
+    regname = ""
+    if proc_name == "metapc":
+        if inf.is_64bit():
+            regname = "rip"
+        elif inf.is_32bit():
+            regname = "eip"
+        else:
+            regname = "ip"
+    elif proc_name == "arm":
+        regname = "pc"
+    rv = regval_t()
+    if get_reg_val(regname, rv):
+        return rv.ival
+    return None
+
+get_sp_val = _get_sp_val if is_ida70() else get_sp_val
+get_ip_val = _get_ip_val if is_ida70() else get_ip_val
+
+class FrameInfo:
+    def __init__(self):
+        self.members = {}
+        self.framesize = 0
+        self.ea = 0
+        self._get_frame()
+
+    def _get_frame(self):
+        result = False
+        sp = get_sp_val()
+        ip = get_ip_val()
+
+        if ip and sp:
+            f = get_func(ip)
+            if f:
+                frame = get_frame(f)
+                if frame:
+                    self.framesize = get_struc_size(frame)
+                    n = frame.memqty
+                    frame_offs = f.frregs + f.frsize
+                    self.ea = sp - get_spd(f, ip) - frame_offs
+                    for i in xrange(n):
+                        m = frame.get_member(i)
+                        if m:
+                            lvar_name = get_member_name(m.id)
+                            lvar_ea = self.ea + m.soff
+                            lvar_size = m.eoff - m.soff
+                            self.members[lvar_ea] = (lvar_name, m.soff, lvar_size, frame_offs)
+                    result = True
+        return result
+
+    def get_element_boundaries(self, addr):
+        for ea, data in self.members.iteritems():
+            name, offs, size, foffs = data
+            if addr in xrange(ea, ea+size):
+                return (ea, ea+size)
+        return None
+
+class DbgHook(DBG_Hooks):
+    def __init__(self, pw):
+        self.pw = pw
+        self.timer = None
+        self.highlighted = True
+        self.enable_timer()
+        DBG_Hooks.__init__(self)
+
+    def enable_timer(self):
+        self.disable_timer()
+        self.timer = register_timer(300, self._flash_cb)
+        return
+
+    def disable_timer(self):
+        if self.timer:
+            unregister_timer(self.timer)
+            self.timer = None
+        return
+
+    def _flash_cb(self):
+        if self.pw:
+            # if debugger is running and process is suspended
+            if is_debugger_on() and get_process_state() == -1:
+                self.pw.on_filter_request_update()
+                self.highlighted = not self.highlighted
+        return 300
+
+    def _request_update_viewer(self, sp=None):
+        _sp = sp if sp else get_sp_val()
+        if self.pw:
+            self.pw.on_filter_request_update(_sp, center=True)
+
+    def dbg_suspend_process(self):
+        self._request_update_viewer()
+        return 0
 
 class StackyMcStackface(ColorFilter):
     name = "Stacky McStackface"
@@ -193,92 +322,9 @@ class StackyMcStackface(ColorFilter):
             goffs += len(buf)
         
         return colors
-
-def get_ida_version():
-    ver = get_kernel_version().split(".")
-    major, minor = ver
-    return ((int(major), int(minor)))
-
-    
+   
 def FILTER_INIT(pw):
-    major, minor = get_ida_version()
-    if major >= 7 and minor > 0:
-        return StackyMcStackface(pw)
-    return None
+    return StackyMcStackface(pw)
 
 def FILTER_EXIT():
     return
-
-class FrameInfo:
-    def __init__(self):
-        self.members = {}
-        self.framesize = 0
-        self.ea = 0
-        self._get_frame()
-
-    def _get_frame(self):
-        result = False
-        sp = get_sp_val()
-        ip = get_ip_val()
-
-        if ip and sp:
-            f = get_func(ip)
-            if f:
-                frame = get_frame(f)
-                if frame:
-                    self.framesize = get_struc_size(frame)
-                    n = frame.memqty
-                    frame_offs = f.frregs + f.frsize
-                    self.ea = sp - get_spd(f, ip) - frame_offs
-                    for i in xrange(n):
-                        m = frame.get_member(i)
-                        if m:
-                            lvar_name = get_member_name(m.id)
-                            lvar_ea = self.ea + m.soff
-                            lvar_size = m.eoff - m.soff
-                            self.members[lvar_ea] = (lvar_name, m.soff, lvar_size, frame_offs)
-                    result = True
-        return result
-
-    def get_element_boundaries(self, addr):
-        for ea, data in self.members.iteritems():
-            name, offs, size, foffs = data
-            if addr in xrange(ea, ea+size):
-                return (ea, ea+size)
-        return None
-
-class DbgHook(DBG_Hooks):
-    def __init__(self, pw):
-        self.pw = pw
-        self.timer = None
-        self.highlighted = True
-        self.enable_timer()
-        DBG_Hooks.__init__(self)
-
-    def enable_timer(self):
-        self.disable_timer()
-        self.timer = register_timer(300, self._flash_cb)
-        return
-
-    def disable_timer(self):
-        if self.timer:
-            unregister_timer(self.timer)
-            self.timer = None
-        return
-
-    def _flash_cb(self):
-        if self.pw:
-            # if debugger is running and process is suspended
-            if is_debugger_on() and get_process_state() == -1:
-                self.pw.on_filter_request_update()
-                self.highlighted = not self.highlighted
-        return 300
-
-    def _request_update_viewer(self, sp=None):
-        _sp = sp if sp else get_sp_val()
-        if self.pw:
-            self.pw.on_filter_request_update(_sp, center=True)
-
-    def dbg_suspend_process(self):
-        self._request_update_viewer()
-        return 0
