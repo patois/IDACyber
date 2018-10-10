@@ -527,7 +527,7 @@ class PixelWidget(QWidget):
 
     def show_help(self):
         global plugin_help
-        info("%s" % plugin_help)
+        ida_kernwin.info("%s" % plugin_help)
 
     def keyPressEvent(self, event):
         if self.key is None:
@@ -579,7 +579,7 @@ class PixelWidget(QWidget):
             hlp = self.fm.help
             if hlp is None:
                 hlp = 'Help unavailable'
-            info('%s\n\n' % hlp)
+            ida_kernwin.info('%s\n\n' % hlp)
 
         elif key == Qt.Key_F12:
             img = self.render_image(cursor = False)
