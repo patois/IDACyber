@@ -198,7 +198,6 @@ class Hubert(ColorFilter):
     lock_sync = False
     show_address_range = False
     zoom = 8
-    link_pixel = False
 
     def __init__(self, pw):
         self.pw = pw

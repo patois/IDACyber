@@ -6,6 +6,8 @@ import ida_diskio
 import ida_bytes
 import ida_segment
 import ida_idaapi
+import ida_nalt
+import ida_idp
 
 from PyQt5.QtWidgets import (QWidget, QApplication, QCheckBox, QLabel,
     QComboBox, QSizePolicy, QVBoxLayout, QHBoxLayout)
@@ -95,6 +97,8 @@ https://github.com/patois/IDACyber
 
 # I believe this is Windows-only?
 FONT_DEFAULT = "Consolas"
+HL_COLOR = 0x0037CC
+highlighted_item = None
 
 class ColorFilter():
     """every new color filters must inherit this class"""
@@ -141,7 +145,37 @@ class ColorFilter():
         return None
 
 # -----------------------------------------------------------------------
+def is_ida_version(requested):
+    rv = requested.split(".")
+    kv = ida_kernwin.get_kernel_version().split(".")
 
+    count = min(len(rv), len(kv))
+    if count:
+        for i in xrange(count):
+            if int(kv[i]) < int(rv[i]):
+                return False
+    return True
+
+# -----------------------------------------------------------------------
+def highlight_item(ea):
+    global highlighted_item
+    global HL_COLOR
+
+    unhighlight_item()
+    
+    current_color = ida_nalt.get_item_color(ea)
+    highlighted_item = (ea, current_color)
+    ida_nalt.set_item_color(ea, HL_COLOR)
+
+# -----------------------------------------------------------------------
+def unhighlight_item():
+    global highlighted_item
+
+    if highlighted_item:
+        ida_nalt.set_item_color(highlighted_item[0], highlighted_item[1])
+        highlighted_item = None
+
+# -----------------------------------------------------------------------
 class ScreenEAHook(ida_kernwin.View_Hooks):
     def __init__(self):
         ida_kernwin.View_Hooks.__init__(self)
@@ -153,7 +187,6 @@ class ScreenEAHook(ida_kernwin.View_Hooks):
             self.new_ea.emit()
 
 # -----------------------------------------------------------------------
-
 class SignalHandler(QObject):    
     pw_statechanged = pyqtSignal()
     pw_next_filter = pyqtSignal()
@@ -161,7 +194,6 @@ class SignalHandler(QObject):
     ida_newea = pyqtSignal()
 
 # -----------------------------------------------------------------------
-
 class IDBBufHandler():
     def __init__(self, loaderSegmentsOnly=False):
         pass
@@ -205,7 +237,6 @@ class IDBBufHandler():
         return base
 
 # -----------------------------------------------------------------------
-    
 class PixelWidget(QWidget):
     def __init__(self, form, bufhandler):
         super(PixelWidget, self).__init__()
@@ -288,7 +319,6 @@ class PixelWidget(QWidget):
                 QPoint(self.rect_x + self.get_width() * zoom_level, (self.get_pixels_total() / self.get_width()) * zoom_level)),
                 img)
 
-            # data renderer
             # TODO: pen color contrast
             # TODO: data export: render data
             # TODO: default fonts / OS?
@@ -709,6 +739,11 @@ class PixelWidget(QWidget):
             if event.buttons() == Qt.NoButton:
                 self._update_mouse_coords(event.pos())
                 self.mouseOffs = self._get_offs_by_pos(event.pos())
+                
+                if self.link_pixel:
+                    highlight_item(ida_bytes.get_item_head(self.get_cursor_address()))
+                else:
+                    unhighlight_item()
 
                 self.setToolTip(self.fm.on_get_tooltip(self.get_address(), self.get_pixels_total(), self.mouseOffs))
 
@@ -868,7 +903,6 @@ class PixelWidget(QWidget):
         self.base = ea
 
 # -----------------------------------------------------------------------
-
 class IDACyberForm(ida_kernwin.PluginForm):
     idbh = None
     hook = None
@@ -979,6 +1013,9 @@ class IDACyberForm(ida_kernwin.PluginForm):
 
         IDACyberForm.windows.remove(self.windowidx)
         self._unload_filters()
+        unhighlight_item()
+
+        # once all idacyber forms are closed
         if not len(IDACyberForm.windows):
             IDACyberForm.hook.unhook()
             IDACyberForm.hook = None
@@ -1036,23 +1073,28 @@ class IDACyberForm(ida_kernwin.PluginForm):
                 IDACyberForm.hook.new_ea.connect(self._change_screen_ea)
 
 # -----------------------------------------------------------------------
+class idb_hook_t(ida_idp.IDB_Hooks):
+    def __init__(self):
+        ida_idp.IDB_Hooks.__init__(self)
 
-def get_ida_version():
-    ver = ida_kernwin.get_kernel_version().split(".")
-    major, minor = ver
-    return ((int(major), int(minor)))
+    def savebase(self):
+        unhighlight_item()
+        return 0
 
+# -----------------------------------------------------------------------
 class IDACyberPlugin(ida_idaapi.plugin_t):
-    flags = 0
+    flags = ida_idaapi.PLUGIN_MOD
     comment = ''
     help = ''
     wanted_name = 'IDACyber'
     wanted_hotkey = 'Ctrl-Shift-C'
 
     def init(self):
-        major, minor = get_ida_version()
-        if major < 7:
+        if not is_ida_version("7.0"):
             return ida_idaapi.PLUGIN_SKIP
+
+        self.idbhook = idb_hook_t()
+        self.idbhook.hook()
 
         global banner
         self.forms = []
@@ -1063,6 +1105,9 @@ class IDACyberPlugin(ida_idaapi.plugin_t):
             ida_kernwin.PluginForm.WOPN_PERSIST |
             ida_kernwin.PluginForm.WCLS_CLOSE_LATER)
         ida_kernwin.msg('%s' % banner)
+        ida_kernwin.msg("+ %s loaded.\n+ %s opens a new instance.\n+ Ctrl-F1 for help.\n\n" % (
+            IDACyberPlugin.wanted_name,
+            IDACyberPlugin.wanted_hotkey))
         return ida_idaapi.PLUGIN_KEEP
 
     def run(self, arg):
@@ -1071,12 +1116,12 @@ class IDACyberPlugin(ida_idaapi.plugin_t):
         self.forms.append(frm)
 
     def term(self):
+        self.idbhook.unhook()
         # sloppy. windows might have been closed / memory free'd
         for frm in self.forms:
             if frm:
                 frm.Close(options = self.options)
 
 # -----------------------------------------------------------------------
-
 def PLUGIN_ENTRY():   
     return IDACyberPlugin()
