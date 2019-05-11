@@ -1002,7 +1002,7 @@ class IDACyberForm(ida_kernwin.PluginForm):
     def _change_screen_ea(self):
         if self.pw.get_sync_state():
             ea = ida_kernwin.get_screen_ea()
-            self.pw.set_addr(ea)#, new_cursor=ea)
+            self.pw.set_addr(ea, new_cursor=ea)
             # TODO
             self._update_widget()
 
