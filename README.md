@@ -5,6 +5,8 @@
 
 IDACyber is an interactive data visualization plugin for IDA Pro.
 
+![IDACyber animation](/gallery/cyber.gif?raw=true "IDACyber animated gif")
+
 Be sure to check out the ![gallery](/gallery/ "gallery")
 
 ### Requirements
