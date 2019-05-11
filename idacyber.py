@@ -24,8 +24,7 @@ banner = """
 | : ||   |   ||   .   ||  : |/\  \___ ___/ |  |>  \ | : _/\ |  \____|
 |   || . |   ||   :   ||    /  \   |   |   |  |>   \|   /  \|   :  \ 
 |   ||. ____/ |___|   ||. _____/   |___|   |_______/|_.: __/|   |___\ 
-|___| :/          |___| :/                             :/   |___|   
-
+|___| :/          |___| :/                             :/   |___|
 """
 
 plugin_help = """
@@ -150,10 +149,12 @@ def is_ida_version(requested):
     kv = ida_kernwin.get_kernel_version().split(".")
 
     count = min(len(rv), len(kv))
-    if count:
-        for i in xrange(count):
-            if int(kv[i]) < int(rv[i]):
-                return False
+    if not count:
+        return False
+
+    for i in xrange(count):
+        if int(kv[i]) < int(rv[i]):
+            return False
     return True
 
 # -----------------------------------------------------------------------
@@ -265,7 +266,7 @@ class PixelWidget(QWidget):
         self.lock_sync = False
         self.link_pixel = True
         self.render_data = True
-        self.cur_formatter_idx = 1
+        self.cur_formatter_idx = 0
         self.max_formatters = 2
 
         self.setMouseTracking(True)        
@@ -282,6 +283,9 @@ class PixelWidget(QWidget):
 
     def paintEvent(self, event):
         global FONT_DEFAULT
+
+        if not self.fm:
+            return
 
         # set leftmost x-coordinate of graph
         zoom_level = self.get_zoom()        
@@ -474,11 +478,17 @@ class PixelWidget(QWidget):
                 if not x:
                     y = y + 1
 
-        if (cursor and self.fm.highlight_cursor and
+        if ((cursor and self.fm.highlight_cursor) and
             self.mouse_abs_x >= self.rect_x and
             self.mouse_abs_x < self.rect_x + self.rect_x_width):
             
-            p = QPoint(self.get_elem_x(), self.get_elem_y())
+            coords = self.get_coords_by_address(self.get_cursor_address())
+            if coords:
+                x,y = coords
+            else:
+                x = self.get_elem_x()
+                y = self.get_elem_y()
+            p = QPoint(x, y)
             img.setPixel(p, ~(img.pixelColor(p)).rgb())
 
         return img
@@ -791,28 +801,35 @@ class PixelWidget(QWidget):
     def set_filter(self, fltobj, idx):
         if self.fm:
             self.fm.on_deactivate()
-        self.fm = fltobj
+        if fltobj:
+            self.fm = fltobj
 
-        """load filter config"""
-        self.set_sync_state(self.fm.sync)
-        self.lock_width = self.fm.lock_width
-        self.set_width(self.fm.width)
-        self.lock_sync = self.fm.lock_sync
-        self.show_address_range = self.fm.show_address_range
-        # disabled for now
-        # self.set_zoom(self.fm.zoom)
-        self.link_pixel = self.fm.link_pixel
-        self.statechanged.emit()
-        """load filter config end"""
+            """load filter config"""
+            self.set_sync_state(self.fm.sync)
+            self.lock_width = self.fm.lock_width
+            self.set_width(self.fm.width)
+            self.lock_sync = self.fm.lock_sync
+            self.show_address_range = self.fm.show_address_range
+            # disabled for now
+            # self.set_zoom(self.fm.zoom)
+            self.link_pixel = self.fm.link_pixel
+            self.statechanged.emit()
+            """load filter config end"""
 
-        self.fm.on_activate(idx)
-        self.filter_idx = idx
-        self.repaint()
+            self.fm.on_activate(idx)
+            self.filter_idx = idx
+            self.repaint()
 
-    def set_addr(self, ea):
+    def set_addr(self, ea, new_cursor=None):
         base = self.bh.get_base(ea)
+
         self._set_base(base)
         self._set_offs(ea - base)
+
+        if new_cursor:
+            self.set_cursor_address(new_cursor)
+            highlight_item(ea)
+
         self.repaint()
 
     def get_zoom(self):
@@ -836,6 +853,9 @@ class PixelWidget(QWidget):
 
     def get_cursor_address(self):
         return self.get_address() + self.mouseOffs
+
+    def set_cursor_address(self, ea):
+        self.mouseOffs = ea - self.get_address()
 
     def get_coords_by_address(self, address):
         base = self.get_address()
@@ -953,17 +973,22 @@ class IDACyberForm(ida_kernwin.PluginForm):
         self.status.setText(status_text)
 
     def _load_filters(self, pw):
-        filterdir = os.path.join(ida_diskio.idadir('plugins'), 'cyber')
-        sys.path.append(filterdir)
+        # TODO: fix
         filters = []
-        for entry in os.listdir(filterdir):
-            if entry.lower().endswith('.py') and entry.lower() != '__init__.py':
-                mod = os.path.splitext(entry)[0]
-                fmod = __import__(mod, globals(), locals(), [], 0)
-                if fmod is not None:
-                    flt = fmod.FILTER_INIT(pw)
-                    if flt is not None:
-                        filters.append((fmod, flt))
+        filterdir = os.path.join(ida_diskio.idadir('plugins'), 'cyber')
+        if not os.path.exists(filterdir):
+            usr_plugins_dir = os.path.join(ida_diskio.get_user_idadir(), "plugins")
+            filterdir = os.path.join(usr_plugins_dir, 'cyber')
+        if os.path.exists(filterdir):       
+            sys.path.append(filterdir)
+            for entry in os.listdir(filterdir):
+                if entry.lower().endswith('.py') and entry.lower() != '__init__.py':
+                    mod = os.path.splitext(entry)[0]
+                    fmod = __import__(mod, globals(), locals(), [], 0)
+                    if fmod is not None:
+                        flt = fmod.FILTER_INIT(pw)
+                        if flt is not None:
+                            filters.append((fmod, flt))
         return filters
 
     def _unload_filters(self):
@@ -974,7 +999,7 @@ class IDACyberForm(ida_kernwin.PluginForm):
     def _change_screen_ea(self):
         if self.pw.get_sync_state():
             ea = ida_kernwin.get_screen_ea()
-            self.pw.set_addr(ea)
+            self.pw.set_addr(ea, new_cursor=ea)
             # TODO
             self._update_widget()
 
@@ -1096,7 +1121,6 @@ class IDACyberPlugin(ida_idaapi.plugin_t):
         self.idbhook = idb_hook_t()
         self.idbhook.hook()
 
-        global banner
         self.forms = []
         self.options = (ida_kernwin.PluginForm.WOPN_MENU |
             ida_kernwin.PluginForm.WOPN_ONTOP |
@@ -1104,10 +1128,13 @@ class IDACyberPlugin(ida_idaapi.plugin_t):
             ida_kernwin.PluginForm.FORM_SAVE |
             ida_kernwin.PluginForm.WOPN_PERSIST |
             ida_kernwin.PluginForm.WCLS_CLOSE_LATER)
-        ida_kernwin.msg('%s' % banner)
-        ida_kernwin.msg("+ %s loaded.\n+ %s opens a new instance.\n+ Ctrl-F1 for help.\n\n" % (
+
+        global banner
+        ida_kernwin.msg('%s\n+ %s loaded.\n+ %s opens a new instance.\n+ Ctrl-F1 for help.\n\n' % (
+            banner,
             IDACyberPlugin.wanted_name,
             IDACyberPlugin.wanted_hotkey))
+
         return ida_idaapi.PLUGIN_KEEP
 
     def run(self, arg):
