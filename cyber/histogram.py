@@ -24,6 +24,7 @@ class Histogram(ColorFilter):
     support_selection = True
     highlight_cursor = False
     disable_data = True
+    show_address_range = False
 
     def __init__(self):
         self.entropy = 0.0
@@ -36,7 +37,9 @@ class Histogram(ColorFilter):
         annotations = None
         if self.bufsize and cursor_x in xrange(len(self.hist)):
             count = self.hist[cursor_x]
-            annotations = [(None, None, 'Start: 0x%X' % address, 0xf2f0f0),
+            annotations = [(None, None, '>> Histogram <<', 0xf2f0f0),
+            (None, None, '', None),
+            (None, None, 'Start: 0x%X' % address, 0xf2f0f0),
             (None, None, 'End: 0x%X' % (address+self.bufsize), 0xf2f0f0),
             (None, None, 'Size: 0x%X' % (self.bufsize), 0xf2f0f0),
             (None, None, '', None),

@@ -196,7 +196,6 @@ class Hubert(ColorFilter):
     lock_width = True
     sync = True
     lock_sync = False
-    show_address_range = False
     zoom = 8
 
     def __init__(self, pw):

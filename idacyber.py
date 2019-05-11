@@ -304,8 +304,8 @@ class PixelWidget(QWidget):
         if self.fm.support_selection:
             selected, start, end = ida_kernwin.read_range_selection(None)
             if selected:
-                content_addr = start
-                content_size = end-start
+                content_addr = start#min(start, end)
+                content_size = end - start#max(start, end) - content_addr
 
         # use colorfilter to render image
         img = self.render_image(addr=content_addr, buf_size=content_size)
@@ -389,11 +389,14 @@ class PixelWidget(QWidget):
                 font.setPointSize(fontsize)
                 self.qp.setFont(font)
 
-        if self.show_address_range:
+        if self.show_address_range and self.fm.link_pixel:
             self.render_slider(addr=content_addr, buf_size=content_size)
 
         # get and draw annotations and pointers
-        annotations = self.fm.on_get_annotations(self.get_address(), self.get_pixels_total(), self.mouseOffs)
+        annotations = self.fm.on_get_annotations(content_addr if content_addr else self.get_address(),
+            self.get_pixels_total(),
+            self.mouseOffs)
+
         if annotations:
             self.render_annotations(annotations)
 
@@ -979,16 +982,16 @@ class IDACyberForm(ida_kernwin.PluginForm):
         if not os.path.exists(filterdir):
             usr_plugins_dir = os.path.join(ida_diskio.get_user_idadir(), "plugins")
             filterdir = os.path.join(usr_plugins_dir, 'cyber')
-        if os.path.exists(filterdir):       
-            sys.path.append(filterdir)
-            for entry in os.listdir(filterdir):
-                if entry.lower().endswith('.py') and entry.lower() != '__init__.py':
-                    mod = os.path.splitext(entry)[0]
-                    fmod = __import__(mod, globals(), locals(), [], 0)
-                    if fmod is not None:
-                        flt = fmod.FILTER_INIT(pw)
-                        if flt is not None:
-                            filters.append((fmod, flt))
+            if os.path.exists(filterdir):       
+                sys.path.append(filterdir)
+                for entry in os.listdir(filterdir):
+                    if entry.lower().endswith('.py') and entry.lower() != '__init__.py':
+                        mod = os.path.splitext(entry)[0]
+                        fmod = __import__(mod, globals(), locals(), [], 0)
+                        if fmod is not None:
+                            flt = fmod.FILTER_INIT(pw)
+                            if flt is not None:
+                                filters.append((fmod, flt))
         return filters
 
     def _unload_filters(self):
@@ -999,7 +1002,7 @@ class IDACyberForm(ida_kernwin.PluginForm):
     def _change_screen_ea(self):
         if self.pw.get_sync_state():
             ea = ida_kernwin.get_screen_ea()
-            self.pw.set_addr(ea, new_cursor=ea)
+            self.pw.set_addr(ea)#, new_cursor=ea)
             # TODO
             self._update_widget()
 
