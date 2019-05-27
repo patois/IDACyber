@@ -950,6 +950,7 @@ class IDACyberForm(ida_kernwin.PluginForm):
         self.pw = None
         self.parent = None
         self.form = None
+        self.clean_init = False
 
     def _update_widget(self):
         lbl_address = 'Address '
@@ -976,22 +977,21 @@ class IDACyberForm(ida_kernwin.PluginForm):
         self.status.setText(status_text)
 
     def _load_filters(self, pw):
-        # TODO: fix
         filters = []
         filterdir = os.path.join(ida_diskio.idadir('plugins'), 'cyber')
         if not os.path.exists(filterdir):
             usr_plugins_dir = os.path.join(ida_diskio.get_user_idadir(), "plugins")
             filterdir = os.path.join(usr_plugins_dir, 'cyber')
-            if os.path.exists(filterdir):       
-                sys.path.append(filterdir)
-                for entry in os.listdir(filterdir):
-                    if entry.lower().endswith('.py') and entry.lower() != '__init__.py':
-                        mod = os.path.splitext(entry)[0]
-                        fmod = __import__(mod, globals(), locals(), [], 0)
-                        if fmod is not None:
-                            flt = fmod.FILTER_INIT(pw)
-                            if flt is not None:
-                                filters.append((fmod, flt))
+        if os.path.exists(filterdir):
+            sys.path.append(filterdir)
+            for entry in os.listdir(filterdir):
+                if entry.lower().endswith('.py') and entry.lower() != '__init__.py':
+                    mod = os.path.splitext(entry)[0]
+                    fmod = __import__(mod, globals(), locals(), [], 0)
+                    if fmod is not None:
+                        flt = fmod.FILTER_INIT(pw)
+                        if flt is not None:
+                            filters.append((fmod, flt))
         return filters
 
     def _unload_filters(self):
@@ -1036,7 +1036,7 @@ class IDACyberForm(ida_kernwin.PluginForm):
         return ida_kernwin.plgform_show(self.__clink__, self, caption, options)
 
     def OnClose(self, options):
-        if IDACyberForm.hook is not None:
+        if self.clean_init and IDACyberForm.hook is not None:
                 IDACyberForm.hook.new_ea.disconnect(self._change_screen_ea)
 
         IDACyberForm.windows.remove(self.windowidx)
@@ -1079,6 +1079,9 @@ class IDACyberForm(ida_kernwin.PluginForm):
         self.pw.prev_filter.connect(self._select_prev_filter)
 
         self.filterlist = self._load_filters(self.pw)
+        if not len(self.filterlist):
+            ida_kernwin.warning("IDACyber: no filters found within /plugins/cyber/")
+            return
 
         self.pw.set_filter(self.filterlist[0][1], 0)
         self.pw.set_addr(ida_kernwin.get_screen_ea())
@@ -1099,6 +1102,8 @@ class IDACyberForm(ida_kernwin.PluginForm):
         self.parent.setLayout(vl)
         if IDACyberForm.hook is not None:
                 IDACyberForm.hook.new_ea.connect(self._change_screen_ea)
+        self.clean_init = True
+        return
 
 # -----------------------------------------------------------------------
 class idb_hook_t(ida_idp.IDB_Hooks):
