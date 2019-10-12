@@ -232,7 +232,7 @@ class IDBBufHandler():
         for i in xrange(qty):
             seg = ida_segment.getnseg(i)
             if seg and seg.contains(ea):
-                base = seg.startEA
+                base = seg.start_ea
                 break
         return base
 
@@ -1133,7 +1133,6 @@ class IDACyberPlugin(ida_idaapi.plugin_t):
         self.options = (ida_kernwin.PluginForm.WOPN_MENU |
             ida_kernwin.PluginForm.WOPN_ONTOP |
             ida_kernwin.PluginForm.WOPN_RESTORE |
-            ida_kernwin.PluginForm.FORM_SAVE |
             ida_kernwin.PluginForm.WOPN_PERSIST |
             ida_kernwin.PluginForm.WCLS_CLOSE_LATER)
 
