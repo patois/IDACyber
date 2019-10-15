@@ -490,7 +490,7 @@ class PixelWidget(QWidget):
                 x = self.get_elem_x()
                 y = self.get_elem_y()
             p = QPoint(x, y)
-            img.setPixel(p, ~(img.pixelColor(p)).rgb())
+            img.setPixel(p, (~(img.pixelColor(p)).rgb() & 0xFFFFFFFF))
 
         return img
 

@@ -106,7 +106,7 @@ class VROP(ColorFilter):
                     if self._is_ret(addr+goffs+i):
                         self.ret_locs.append((nret, colidx, addr+goffs+i))
                         nret += 1
-                        col = ~((self.colormap[c/(0xff/(len(self.colormap)-1))])&0xFFFFFF)
+                        col = (~((self.colormap[c/(0xff/(len(self.colormap)-1))])&0xFFFFFF) & 0xFFFFFFFF)
                     else:
                         col = self.colormap[c/(0xff/(len(self.colormap)-1))]
                     colors.append((True,  col))
