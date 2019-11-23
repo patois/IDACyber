@@ -13,14 +13,13 @@ class GameBoy(ColorFilter):
         for mapped, buf in buffers:
             if mapped:        
                 for c in buf:           
-                    c = ord(c)
                     red = c & 0xE0
                     green = (c << 3) & 0xE0
                     blue = (c << 6) & 0xC0
                     gray = red * 0.3 + green * 0.59 + blue * 0.11
                     colors.append((True, qRgb(gray, gray, gray)))
             else:
-                for i in xrange(len(buf)):
+                for i in range(len(buf)):
                     colors.append((False, None))
         return colors
 

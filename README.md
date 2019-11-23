@@ -11,7 +11,8 @@ Be sure to check out the ![gallery](/gallery/ "gallery")
 
 ### Requirements
 
-* IDA (Qt) >= 7.0
+* IDA 7.3+
+* This IDAPython project is compatible with Python3. For compatibility with older versions of IDA, you may want to check out the Python2 branch of this project.
 
 ### Installation
 

@@ -13,15 +13,14 @@ class AutoXor(ColorFilter):
 
     def _update_key(self, buffers):
         if buffers:
-            tmp = ''
+            tmp = b''
             for mapped, buf in buffers:
-                tmp += buf if mapped else ''
+                tmp += buf if mapped else b''
             self.size = len(tmp)            
-            c = Counter(tmp.replace("\x00",""))
+            c = Counter(tmp.replace(b"\x00",b""))
             mc = c.most_common(1)
             if len(mc):
                 cur, self.occurence = mc[0]
-                cur = ord(cur)
                 if cur != self.key:
                     msg('Key %02Xh - %d/%d (%.2f%%)\n' % (cur, self.occurence, self.size, float(self.occurence)/float(self.size)*100.0))
                     self.key = cur
@@ -32,10 +31,10 @@ class AutoXor(ColorFilter):
         for mapped, buf in buffers:
             if mapped:
                 for c in buf:
-                    c = (ord(c) ^ self.key) & 0xFF
+                    c = (c ^ self.key) & 0xFF
                     colors.append((True, qRgb(c, 0, c)))
             else:
-                for i in xrange(len(buf)):
+                for i in range(len(buf)):
                     colors.append((False, None))
         return colors
 

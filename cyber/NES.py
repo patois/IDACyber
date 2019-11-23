@@ -12,13 +12,12 @@ class NES(ColorFilter):
         for mapped, buf in buffers:
             if mapped:
                 for c in buf:
-                    c = ord(c)
                     red = c & 0xE0
                     green = (c << 3) & 0xE0
                     blue = (c << 6) & 0xC0
                     colors.append((True, qRgb(red, green, blue)))
             else:
-                for i in xrange(len(buf)):
+                for i in range(len(buf)):
                     colors.append((False, None))
         return colors
     

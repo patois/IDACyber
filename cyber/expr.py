@@ -34,11 +34,11 @@ class xpression(ColorFilter):
         for mapped, buf in buffers:
             if mapped:
                 for c in buf:
-                    r = g = b = ord(c) & 0xFF
+                    r = g = b = c & 0xFF
                     r, g, b = eval(self.xpr)
                     colors.append((True, qRgb(r&0xFF, g&0xFF, b&0xFF)))
             else:
-                for i in xrange(len(buf)):
+                for i in range(len(buf)):
                     colors.append((False, None))
         return colors
 

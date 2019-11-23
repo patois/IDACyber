@@ -208,7 +208,7 @@ class Hubert(ColorFilter):
         self.direction = 1
         self.distance = 0
         self.max_distance = 3
-        self.timer_speed = self.initial_timer_speed = 1000/12
+        self.timer_speed = self.initial_timer_speed = int(1000/12)
         self.num_clicks = 0
         self.ref_click = 0
         self.prev_click = 0
@@ -245,7 +245,7 @@ class Hubert(ColorFilter):
                 - FPS = (FPB * BPM) / 60"""
                 self.bpm = 60000 * self.num_clicks / (milli_sec - self.ref_click)
                 fpb = (len(hubert)+self.pause_frames)
-                self.timer_speed = round(float(60000)/float(fpb*round(self.bpm)))
+                self.timer_speed = int(round(float(60000)/float(fpb*round(self.bpm))))
                 self.idx_frame = self.onbeat_frame
                 self.num_clicks += 1
 
@@ -322,11 +322,11 @@ class Hubert(ColorFilter):
         colors = []
         framesize = len(hubert[0])
 
-        start_offs = (size/2) - (framesize/2)
+        start_offs = int((size/2) - (framesize/2))
         start_offs -= (start_offs%Hubert.width)
 
         # black bg
-        for i in xrange(start_offs):
+        for i in range(start_offs):
             colors.append((False, 0))
 
         # hubert
@@ -335,7 +335,7 @@ class Hubert(ColorFilter):
             colors.append((True, color))
 
         # black bg
-        for i in xrange(start_offs + framesize):
+        for i in range(start_offs + framesize):
             colors.append((False, 0))
 
         return colors

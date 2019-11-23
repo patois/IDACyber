@@ -35,7 +35,7 @@ class Histogram(ColorFilter):
     def on_get_annotations(self, address, size, mouse_offs):
         cursor_x = mouse_offs % Histogram.width
         annotations = None
-        if self.bufsize and cursor_x in xrange(len(self.hist)):
+        if self.bufsize and cursor_x in range(len(self.hist)):
             count = self.hist[cursor_x]
             annotations = [(None, None, '>> Histogram <<', 0xf2f0f0),
             (None, None, '', None),
@@ -52,28 +52,28 @@ class Histogram(ColorFilter):
         self.hist = [0] * 256
         width = Histogram.width
 
-        height = int(round(size / width))
-        e = ''
+        height = round(size / width)
+        e = ""
         self.bufsize = 0
         for mapped, buf in buffers:
             if mapped:
                 self.bufsize += len(buf)
                 for c in buf:
-                    e += c
-                    self.hist[ord(c)] += 1
+                    e += chr(c)
+                    self.hist[c] += 1
         self.entropy = H(e)
         self.max_count = max(self.hist)
         cursor_x = mouse_offs % width
 
         if self.max_count and height:
             bars = []
-            for i in xrange(len(self.hist)):
+            for i in range(len(self.hist)):
                 count = self.hist[i]
-                bars.append(int(round((count/float(self.max_count))*height)))
+                bars.append(round((count/float(self.max_count))*height))
 
-            for i in xrange(len(bars)):
+            for i in range(len(bars)):
                 dst_y = bars[i]
-                for y in xrange(dst_y):
+                for y in range(dst_y):
                     colors[height*width - width+i - y*width] = (True, 0xf2f0f0 if i == cursor_x else [0xffad00,0xc10000][i%2])
 
         return colors

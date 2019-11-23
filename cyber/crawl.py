@@ -46,7 +46,7 @@ class Crawl(ColorFilter):
     def _get_func_name(self, ea):
         f = get_func(ea)
         if f:
-            return get_func_name(f.startEA)
+            return get_func_name(f.start_ea)
         return None
 
     def _get_item_info(self, ea):
@@ -82,11 +82,11 @@ class Crawl(ColorFilter):
                     else: # code
                         f = get_func(addr + mouse_offs)
                         if f:
-                            head = f.startEA
-                            tail = f.endEA
+                            head = f.start_ea
+                            tail = f.end_ea
 
-                for pos in xrange(len(buf)):
-                    c = ord(buf[pos]) & 0xFF
+                for pos in range(len(buf)):
+                    c = buf[pos] & 0xFF
                     
                     highlight = False
                     if mouse_offs is not None:
@@ -101,7 +101,7 @@ class Crawl(ColorFilter):
                     else:
                         colors.append((True, qRgb(c, 0, 0)))
             else:
-                for pos in xrange(len(buf)):
+                for pos in range(len(buf)):
                     colors.append((False, None))
             goffs += len(buf)
         return colors

@@ -11,11 +11,10 @@ class Heatmap(ColorFilter):
         for mapped, buf in buffers:
             if mapped:                
                 for c in buf:
-                    c = ord(c) & 0xFF
                     r, g, b = self.hm(c)
                     colors.append((True, qRgb(r, g, b)))
             else:
-                for i in xrange(len(buf)):
+                for i in range(len(buf)):
                     colors.append((False, None))
         return colors
 

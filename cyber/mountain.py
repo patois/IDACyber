@@ -27,9 +27,9 @@ class Mountain(ColorFilter):
         goffs = 0
         for mapped, buf in buffers:
             if mapped:
-                for offs in xrange(len(buf)):
+                for offs in range(len(buf)):
                     r = g = b = 0
-                    c = ord(buf[offs]) & 0xFF
+                    c = buf[offs] & 0xFF
                     ea = addr + goffs + offs
                     f = get_func(ea)
                     if f:
@@ -40,7 +40,7 @@ class Mountain(ColorFilter):
                         r = g = b = c
                     colors.append((True, qRgb(r, g, b)))
             else:
-                for i in xrange(len(buf)):
+                for i in range(len(buf)):
                     colors.append((False, None))
             goffs += len(buf)
         return colors

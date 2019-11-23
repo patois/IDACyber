@@ -163,7 +163,7 @@ class Dbg(ColorFilter):
         return
 
     def _byte2coloridx(self, c):
-        return c/(0xff/(len(self.palette)-2))
+        return int(c/(0xff/(len(self.palette)-2)))
 
     def on_get_annotations(self, address, size, mouse_offs):
         ann = []
@@ -185,7 +185,7 @@ class Dbg(ColorFilter):
                 while i < len(buf):
                     if ip is not None and ip == addr + goffs + i and self.hook.highlighted:
                         size = get_item_size(ip)
-                        for j in xrange(size):
+                        for j in range(size):
                             colors.append((True, qRgb(0xFF, 0x45, 0)))
                         i += size
                         continue
@@ -194,18 +194,18 @@ class Dbg(ColorFilter):
                             data = self.hook.hits[addr + goffs + i]
                             size = data[1]
                             hits = data[0]
-                            for j in xrange(size):
+                            for j in range(size):
                                 base = self.palette[len(self.palette)-1]
                                 col = QColor(base).darker(100+(float(hits)/self.hook.maxhits)*105).rgb()
                                 colors.append((True, col))
                             i += size
                             continue
                         else:                            
-                            c = ord(buf[i])
+                            c = buf[i]
                             colors.append((True, self.palette[self._byte2coloridx(c)]))
                     i += 1
             else:
-                for i in xrange(len(buf)):
+                for i in range(len(buf)):
                     colors.append((False, None))
             goffs += len(buf)
         return colors

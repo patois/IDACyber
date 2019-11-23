@@ -36,10 +36,10 @@ class Xor(ColorFilter):
         for mapped, buf in buffers:
             if mapped:  
                 for c in buf:
-                    c = (ord(c) ^ self.key) & 0xFF
+                    c = (c ^ self.key) & 0xFF
                     colors.append((True, qRgb(0, c, c)))
             else:
-                for i in xrange(len(buf)):
+                for i in range(len(buf)):
                     colors.append((False, None))
         return colors
 

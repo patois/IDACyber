@@ -51,7 +51,7 @@ Controls:
   ------------------
 * CTRL-F1                 - Display this help/quick manual
 * F2                      - Display help for current filter
-* F12                     - Export current graph to disk
+* CTRL + SHIFT + F12      - Export current graph to disk
 
 * UP                      - Pan up
 * DOWN                    - Pan down
@@ -65,8 +65,7 @@ Controls:
 * N                       - Select next filter
 * G                       - Go to address (accepts expressions)
 * S                       - Toggle 'sync' setting
-* D                       - Switch between hex/ascii
-* T                       - Turn hex/ascii dump on/off
+* D                       - Cycle through data renderers (off/ascii/hex)
 
 
 Check out the official project site for updates:
@@ -152,7 +151,7 @@ def is_ida_version(requested):
     if not count:
         return False
 
-    for i in xrange(count):
+    for i in range(count):
         if int(kv[i]) < int(rv[i]):
             return False
     return True
@@ -207,11 +206,11 @@ class IDBBufHandler():
         result = ida_bytes.get_bytes_and_mask(ea, count)
         if result:
             buf, mask = result
-            for m in xrange(len(mask)):
-                b = ord(mask[m])
+            for m in range(len(mask)):
+                b = mask[m]
                 if i == 0:
                     ismapped = (b&1) != 0
-                for j in xrange(8):
+                for j in range(8):
                     bitset = ((b>>j) & 1) != 0
                     if bitset != ismapped:
                         offs = i+j
@@ -229,7 +228,7 @@ class IDBBufHandler():
     def get_base(self, ea):
         base = ida_idaapi.BADADDR
         qty = ida_segment.get_segm_qty()
-        for i in xrange(qty):
+        for i in range(qty):
             seg = ida_segment.getnseg(i)
             if seg and seg.contains(ea):
                 base = seg.start_ea
@@ -265,9 +264,9 @@ class PixelWidget(QWidget):
         self.lock_sync = False
         self.link_pixel = True
         self.highlight_cursor = False
-        self.render_data = True
-        self.cur_formatter_idx = 0
-        self.max_formatters = 2
+        self.cur_formatter_idx = 1
+        self.formatters = list(range(3)) # TODO
+        self.max_formatters = len(self.formatters)
 
         self.setMouseTracking(True)        
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -287,7 +286,7 @@ class PixelWidget(QWidget):
 
         # set leftmost x-coordinate of graph
         zoom_level = self.get_zoom()        
-        self.rect_x_width = self.get_width() * zoom_level       
+        self.rect_x_width = self.get_pixel_qty_per_line() * zoom_level       
         self.rect_x = (self.rect().width() / 2) - (self.rect_x_width / 2)
 
         self.qp.begin(self)
@@ -318,7 +317,7 @@ class PixelWidget(QWidget):
             """
             # draw image
             self.qp.drawImage(QRect(QPoint(self.rect_x, 0), 
-                QPoint(self.rect_x + self.get_width() * zoom_level, (self.get_pixels_total() / self.get_width()) * zoom_level)),
+                QPoint(self.rect_x + self.get_pixel_qty_per_line() * zoom_level, (self.get_pixel_qty() / self.get_pixel_qty_per_line()) * zoom_level)),
                 img)
 
             # TODO: pen color contrast
@@ -326,7 +325,7 @@ class PixelWidget(QWidget):
             # TODO: default fonts / OS?
             # TODO: optimization
             # FIXME: there's a bug with gaps/unmapped buffers
-            if self.render_data and not self.fm.disable_data and zoom_level > 6:
+            if self.cur_formatter_idx and not self.fm.disable_data and zoom_level > 6:
                 self.qp.setPen(QColor(Qt.white))
                 fontsize = self.qp.font().pointSize()
                 font = self.qp.font()
@@ -341,9 +340,9 @@ class PixelWidget(QWidget):
                 
                 m = self.qp.fontMetrics()
                 x = y = 0
-                num_pixels_per_row = self.get_width()
+                num_pixels_per_line = self.get_pixel_qty_per_line()
 
-                if self.cur_formatter_idx == 0:
+                if self.cur_formatter_idx == 1:
                     sample = "%c" % (ord('X'))
                     cwidth = m.width(sample)
                     cheight = m.height()
@@ -351,7 +350,7 @@ class PixelWidget(QWidget):
                     for mapped, buf in self.buffers:
                         for i in range(len(buf)):
                             if mapped:
-                                b = ord(buf[i])
+                                b = buf[i]
                                 data = "%c" % (chr(b) if b in range(0x20, 0x7E) else ".")
 
                                 self.qp.drawStaticText(
@@ -359,11 +358,11 @@ class PixelWidget(QWidget):
                                     y*zoom_level + (zoom_level - cheight)/2,
                                     QStaticText(data))
 
-                            x = (i + 1) % num_pixels_per_row
+                            x = (i + 1) % num_pixels_per_line
                             if not x:
                                 y = y + 1
 
-                elif self.cur_formatter_idx == 1:
+                elif self.cur_formatter_idx == 2:
                     sample = "%02X" % (ord('X'))
                     cwidth = m.width(sample)
                     cheight = m.height()
@@ -371,14 +370,14 @@ class PixelWidget(QWidget):
                     for mapped, buf in self.buffers:
                         for i in range(len(buf)):
                             if mapped:
-                                data = "%02X" % ord(buf[i])                                
+                                data = "%02X" % buf[i]
 
                                 self.qp.drawStaticText(
                                     self.rect_x + x*zoom_level + (zoom_level - cwidth)/2,
                                     y*zoom_level + (zoom_level - cheight)/2,
                                     QStaticText(data))
 
-                            x = (i + 1) % num_pixels_per_row
+                            x = (i + 1) % num_pixels_per_line
                             if not x:
                                 y = y + 1
 
@@ -392,7 +391,7 @@ class PixelWidget(QWidget):
 
         # get and draw annotations and pointers
         annotations = self.fm.on_get_annotations(content_addr if content_addr else self.get_address(),
-            self.get_pixels_total(),
+            self.get_pixel_qty(),
             self.mouseOffs)
 
         if annotations:
@@ -404,7 +403,7 @@ class PixelWidget(QWidget):
     def render_slider(self, addr=None, buf_size=None):
         if addr is None or buf_size is None:
             addr = self.base + self.offs
-            buf_size = self.get_pixels_total()
+            buf_size = self.get_pixel_qty()
 
         lowest_ea = ida_idaapi.get_inf_structure().get_minEA()
         highest_ea = ida_idaapi.get_inf_structure().get_maxEA()
@@ -422,8 +421,8 @@ class PixelWidget(QWidget):
         bar_height = self.rect().height() - 2 * bar_y
         self.qp.fillRect(bar_x, bar_y, bar_width, bar_height, QColor(0x191919))
 
-        slider_offs_s = int(round(perc_s * bar_height))
-        slider_offs_e = int(round(perc_e * bar_height))
+        slider_offs_s = perc_s * bar_height
+        slider_offs_e = perc_e * bar_height
 
         spaces_slider = 1
         slider_x = bar_x + spaces_slider
@@ -436,7 +435,7 @@ class PixelWidget(QWidget):
 
         # draw addresses
         top = '%X:' % self.get_address()
-        bottom = '%X' % (self.get_address() + ((self.get_pixels_total() / self.get_width()) - 1) * self.get_width())
+        bottom = '%X' % int(self.get_address() + ((self.get_pixel_qty() / self.get_pixel_qty_per_line()) - 1) * self.get_pixel_qty_per_line())
         self.qp.setPen(QColor(0x808080))
         self.qp.drawText(self.rect_x - self.qp.fontMetrics().width(top) - bar_width - 2 * spaces_bar,
             self.qp.fontMetrics().height(),
@@ -448,14 +447,14 @@ class PixelWidget(QWidget):
 
     def render_image(self, addr=None, buf_size=None, cursor=True):
         size = self.size()
-        self.maxPixelsTotal = self.get_width() * (size.height() / self.pixelSize)
+        self.set_pixel_qty(self.get_pixel_qty_per_line() * int(size.height() / self.pixelSize))
         if addr is None or buf_size is None:
             addr = self.base + self.offs
-            buf_size = self.get_pixels_total()
+            buf_size = self.get_pixel_qty()
 
         self.buffers = self.bh.get_buffers(addr, buf_size)
-        img = QImage(self.get_width(), size.height() / self.pixelSize, QImage.Format_RGB32)
-        pixels = self.fm.on_process_buffer(self.buffers, addr, self.get_pixels_total(), self.mouseOffs)
+        img = QImage(self.get_pixel_qty_per_line(), size.height() / self.pixelSize, QImage.Format_RGB32)
+        pixels = self.fm.on_process_buffer(self.buffers, addr, self.get_pixel_qty(), self.mouseOffs)
 
         x = y = 0
         # transparency effect for unmapped bytes
@@ -467,15 +466,15 @@ class PixelWidget(QWidget):
                     pix = transparency_dark[(x&2 != 0) ^ (y&2 != 0)]
             img.setPixel(x, y, pix)
 
-            x = (x + 1) % self.get_width()
+            x = (x + 1) % self.get_pixel_qty_per_line()
             if not x:
                 y = y + 1
 
-        if len(pixels) != self.get_pixels_total():
-            for i in xrange(self.get_pixels_total() - len(pixels)):
+        if len(pixels) != self.get_pixel_qty():
+            for i in range(self.get_pixel_qty() - len(pixels)):
                 pix = transparency_err[(x&2 != 0) ^ (y&2 != 0)]
                 img.setPixel(x, y, pix)
-                x = (x + 1) % self.get_width()
+                x = (x + 1) % self.get_pixel_qty_per_line()
                 if not x:
                     y = y + 1
 
@@ -496,7 +495,7 @@ class PixelWidget(QWidget):
 
     def render_annotations(self, annotations=[]):
         a_offs = 20
-        base_x = self.rect_x + self.get_width() * self.pixelSize + a_offs + 10
+        base_x = self.rect_x + self.get_pixel_qty_per_line() * self.pixelSize + a_offs + 10
         base_y = self.qp.fontMetrics().height()
         offs_x = 5
         offs_y = base_y
@@ -549,10 +548,10 @@ class PixelWidget(QWidget):
             self.repaint()
         else:
             curea = self.get_address()
-            if ea < curea or ea >= curea + self.get_pixels_total():
+            if ea < curea or ea >= curea + self.get_pixel_qty():
                 # TODO: verify that ea is valid after following operation
                 if center:
-                    ea -= self.get_pixels_total()/2
+                    ea -= int(self.get_pixel_qty()/2)
                 self.set_addr(ea)
             else:
                 self.repaint()
@@ -601,10 +600,6 @@ class PixelWidget(QWidget):
                 self.set_sync_state(not self.get_sync_state())
                 update = True
 
-        elif key == Qt.Key_T:
-            self.render_data = not self.render_data
-            self.repaint()
-
         elif key == Qt.Key_D:
             self.cur_formatter_idx = (self.cur_formatter_idx + 1) % self.max_formatters
             self.repaint()
@@ -621,7 +616,7 @@ class PixelWidget(QWidget):
                 hlp = 'Help unavailable'
             ida_kernwin.info('%s\n\n' % hlp)
 
-        elif key == Qt.Key_F12:
+        elif key == Qt.Key_F12 and shift_pressed and ctrl_pressed:
             img = self.render_image(cursor = False)
             img = img.scaled(img.width()*self.pixelSize, img.height()*self.pixelSize, Qt.KeepAspectRatio, Qt.FastTransformation)
             done = False
@@ -640,25 +635,25 @@ class PixelWidget(QWidget):
                     break
 
         elif key == Qt.Key_PageDown:
-            self.set_offset_delta(-self.get_pixels_total())
+            self.set_offset_delta(-self.get_pixel_qty())
             update = True
 
         elif key == Qt.Key_PageUp:
-            self.set_offset_delta(self.get_pixels_total())
+            self.set_offset_delta(self.get_pixel_qty())
             update = True
 
         elif key == Qt.Key_Down:
             if shift_pressed:
                 self.set_offset_delta(-1)
             else:
-                self.set_offset_delta(-self.get_width())
+                self.set_offset_delta(-self.get_pixel_qty_per_line())
             update = True
 
         elif key == Qt.Key_Up:
             if shift_pressed:
                 self.set_offset_delta(1)
             else:
-                self.set_offset_delta(self.get_width())
+                self.set_offset_delta(self.get_pixel_qty_per_line())
             update = True
 
         elif key == Qt.Key_Plus:
@@ -685,7 +680,7 @@ class PixelWidget(QWidget):
 
     def mouseReleaseEvent(self, event):
         self.prev_mouse_y = event.pos().y()
-        self.fm.on_mb_click(event, self.get_address(), self.get_pixels_total(), self.mouseOffs)
+        self.fm.on_mb_click(event, self.get_address(), self.get_pixel_qty(), self.mouseOffs)
         
         if self.get_sync_state():
             ida_kernwin.jumpto(self.base + self.offs)
@@ -701,7 +696,7 @@ class PixelWidget(QWidget):
         return
 
     def wheelEvent(self, event):
-        delta = event.angleDelta().y()/120
+        delta = round(event.angleDelta().y()/120)
 
         # zoom
         if self.key == Qt.Key_Control:
@@ -725,11 +720,11 @@ class PixelWidget(QWidget):
             if not self.lock_width:
                 less = delta < 0
                 w = -8 if less else 8
-                self.set_width((self.get_width() & 0xFFFFFFF8) + w)
+                self.set_pixel_qty_per_line((self.get_pixel_qty_per_line() & 0xFFFFFFF8) + w)
 
         # offset (coarse)
         else:
-            self.set_offset_delta(delta * self.get_width())
+            self.set_offset_delta(delta * self.get_pixel_qty_per_line())
             
             if self.get_sync_state():
                 ida_kernwin.jumpto(self.base + self.offs)
@@ -755,7 +750,7 @@ class PixelWidget(QWidget):
                 elif self.highlight_cursor:
                     unhighlight_item()
 
-                self.setToolTip(self.fm.on_get_tooltip(self.get_address(), self.get_pixels_total(), self.mouseOffs))
+                self.setToolTip(self.fm.on_get_tooltip(self.get_address(), self.get_pixel_qty(), self.mouseOffs))
 
             # zoom
             elif self.key == Qt.Key_Control:
@@ -770,7 +765,7 @@ class PixelWidget(QWidget):
                 if not self.lock_width:
                     less = y > self.prev_mouse_y
                     delta = -16 if less else 16
-                    self.set_width((self.get_width() & 0xFFFFFFF0) + delta)
+                    self.set_pixel_qty_per_line((self.get_pixel_qty_per_line() & 0xFFFFFFF0) + delta)
 
             # scrolling (offset)
             elif y != self.prev_mouse_y:
@@ -779,7 +774,7 @@ class PixelWidget(QWidget):
 
                 # offset (coarse)
                 if self.key != Qt.Key_Shift:
-                    delta *= self.get_width()
+                    delta *= self.get_pixel_qty_per_line()
                     
                 self.set_offset_delta(delta)
 
@@ -807,7 +802,7 @@ class PixelWidget(QWidget):
             """load filter config"""
             self.set_sync_state(self.fm.sync)
             self.lock_width = self.fm.lock_width
-            self.set_width(self.fm.width)
+            self.set_pixel_qty_per_line(self.fm.width)
             self.lock_sync = self.fm.lock_sync
             self.show_address_range = self.fm.show_address_range
             # disabled for now
@@ -845,10 +840,13 @@ class PixelWidget(QWidget):
         self.set_zoom(max(1, self.pixelSize + dzoom))
         return
 
-    def get_width(self):
+    def get_pixel_qty_per_line(self):
         return self.maxPixelsPerLine
 
-    def get_pixels_total(self):
+    def set_pixel_qty(self, qty):
+        self.maxPixelsTotal = qty
+
+    def get_pixel_qty(self):
         return self.maxPixelsTotal
 
     def get_address(self):
@@ -863,10 +861,10 @@ class PixelWidget(QWidget):
     def get_coords_by_address(self, address):
         base = self.get_address()
         # if address is visible in current window
-        if address >= base and address < base + self.get_pixels_total():
+        if address >= base and address < base + self.get_pixel_qty():
             offs = address - base
-            x = offs % self.get_width()
-            y = offs / (self.get_width())
+            x = int(offs % self.get_pixel_qty_per_line())
+            y = int(offs / (self.get_pixel_qty_per_line()))
             return (x, y)
         return None
 
@@ -874,7 +872,7 @@ class PixelWidget(QWidget):
         base = self.get_address()
         # if address is visible in current window
         direction = None
-        if address >= base and address < base + self.get_pixels_total():
+        if address >= base and address < base + self.get_pixel_qty():
             direction = 0
         elif address < base:
             direction = 1
@@ -882,7 +880,7 @@ class PixelWidget(QWidget):
             direction = 2
         return direction
 
-    def set_width(self, width):
+    def set_pixel_qty_per_line(self, width):
         self.maxPixelsPerLine = max(1, width)
 
     def set_width_delta(self, dwidth):
@@ -899,9 +897,9 @@ class PixelWidget(QWidget):
         self._set_offs(self.offs - delta)
 
     def _get_offs_by_pos(self, pos):
-        elemX = self.get_elem_x()
-        elemY = self.get_elem_y()
-        offs = elemY * self.get_width() + elemX
+        elemX = int(self.get_elem_x())
+        elemY = int(self.get_elem_y())
+        offs = elemY * self.get_pixel_qty_per_line() + elemX
         return offs
 
     def _update_mouse_coords(self, pos):
@@ -910,8 +908,8 @@ class PixelWidget(QWidget):
         self.mouse_abs_x = x
         self.mouse_abs_y = y
 
-        self.elemX = max(0, min((max(0, x - self.rect_x)) / self.pixelSize, self.get_width() - 1))
-        self.elemY = min(y / self.pixelSize, self.maxPixelsTotal / self.get_width() - 1)
+        self.elemX = max(0, min(((max(0, x - self.rect_x)) / self.pixelSize), self.get_pixel_qty_per_line() - 1))
+        self.elemY = min(y / self.pixelSize, (self.get_pixel_qty() / self.get_pixel_qty_per_line()) - 1)
 
     def get_elem_x(self):
         return self.elemX
@@ -963,9 +961,9 @@ class IDACyberForm(ida_kernwin.PluginForm):
             val_cursor = '%Xh' % self.pw.get_cursor_address()
         else:
             val_address = val_cursor = 'N/A'
-        width = self.pw.get_width()
+        width = self.pw.get_pixel_qty_per_line()
         val_zoom = '%d:1 ' % self.pw.get_zoom()
-        val_pixel = '%dx%d ' % (width, self.pw.get_pixels_total()/width)
+        val_pixel = '%dx%d ' % (width, int(self.pw.get_pixel_qty()/width))
 
         status_text = ' | '.join((lbl_address + val_address,
             lbl_cursor + val_cursor,

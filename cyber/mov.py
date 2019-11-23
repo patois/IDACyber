@@ -51,8 +51,8 @@ class MovFilter(ColorFilter):
     def _get_selection_offs(self):
         offs = 0
         ann_cnt = len(self.annotations)
-        if ann_cnt/2 > self.threshold/2:
-            offs = ann_cnt/2 - self.threshold/2
+        if ann_cnt > self.threshold:
+            offs = int(ann_cnt/2 - self.threshold/2)
         return offs
 
     def on_get_annotations(self, address, size, mouse_offs):
@@ -69,7 +69,7 @@ class MovFilter(ColorFilter):
             i = 0
             offs = self._get_selection_offs()
             ann_cnt = len(self.annotations)
-            for x in xrange(offs,ann_cnt):
+            for x in range(offs,ann_cnt):
                 _, acc, ea = self.annotations[x]
                 textcol = self.txtcol
                 ann.append((ea, self.insn_colors[acc], "   %X:  %s" % (ea, generate_disasm_line(ea, GENDSM_FORCE_CODE | GENDSM_REMOVE_TAGS)), self.insn_colors[acc]))
@@ -96,16 +96,16 @@ class MovFilter(ColorFilter):
                         maxlen = min(blen-i, _len)
                         self.annotations.append((ann_n, acc, addr+goffs+i))
                         ann_n += 1
-                        for j in xrange(maxlen):
+                        for j in range(maxlen):
                             colors.append((True, col))
                         i += maxlen
                     else:
-                        col = self.colormap[ord(buf[i])/(0xff/(len(self.colormap)-1))]
+                        col = int(self.colormap[int(buf[i]/(0xff/(len(self.colormap)-1)))])
                         colors.append((True, col))
                         i += 1
             else:
                 # indicate transparent area
-                for i in xrange(len(buf)):
+                for i in range(len(buf)):
                     colors.append((False, None))
 
             goffs += len(buf)

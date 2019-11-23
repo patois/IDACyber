@@ -85,7 +85,7 @@ class FrameInfo:
                     n = frame.memqty
                     frame_offs = f.frregs + f.frsize
                     self.ea = sp - get_spd(f, ip) - frame_offs
-                    for i in xrange(n):
+                    for i in range(n):
                         m = frame.get_member(i)
                         if m:
                             lvar_name = get_member_name(m.id)
@@ -96,9 +96,9 @@ class FrameInfo:
         return result
 
     def get_element_boundaries(self, addr):
-        for ea, data in self.members.iteritems():
+        for ea, data in self.members.items():
             name, offs, size, foffs = data
-            if addr in xrange(ea, ea+size):
+            if addr in range(ea, ea+size):
                 return (ea, ea+size)
         return None
 
@@ -278,9 +278,9 @@ class StackyMcStackface(ColorFilter):
                     if mouse_offs and mouse_boundaries:
                         start, end = mouse_boundaries
 
-                        if addr + goffs + i in xrange(start, end):
+                        if addr + goffs + i in range(start, end):
                             size = min(end - start, total-i)
-                            for j in xrange(size):
+                            for j in range(size):
                                 colors.append((True, self.palette[3]))
                             i += size
                             continue
@@ -291,18 +291,18 @@ class StackyMcStackface(ColorFilter):
                         if boundaries:
                             start, end = boundaries
                             size = min(end - start, total-i)
-                        for j in xrange(size):
+                        for j in range(size):
                             colors.append((True, self.palette[4]))
                         i += size
                         continue
                     # locals
-                    if goffs + addr + i in xrange(fi.ea, fi.ea + fi.framesize):
+                    if goffs + addr + i in range(fi.ea, fi.ea + fi.framesize):
                         size = 1
                         boundaries = fi.get_element_boundaries(goffs + addr + i)
                         if boundaries: # if anything on the stackframe
                             start, end = boundaries
                             size = min(end - start, total-i)
-                            for j in xrange(size):
+                            for j in range(size):
                                 colors.append((True, self.palette[2]))
                             i += size
                             continue
@@ -317,7 +317,7 @@ class StackyMcStackface(ColorFilter):
 
             # unmapped, transparency
             else:
-                for i in xrange(len(buf)):
+                for i in range(len(buf)):
                     colors.append((False, None))
             goffs += len(buf)
         

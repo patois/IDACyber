@@ -24,16 +24,16 @@ class Annotations(ColorFilter):
 
         for mapped, buf in buffers:
             if mapped:        
-                for i in xrange(len(buf)):           
-                    c = ord(buf[i])
+                for i in range(len(buf)):           
+                    c = buf[i]
                     if addr + i + goffs >= head and addr + i + goffs < tail:
                         col = self.red[1]
                     else:
-                        col = self.colormap[c/(0xff/(len(self.colormap)-1))]
+                        col = self.colormap[int(c/(0xff/(len(self.colormap)-1)))]
 
                     colors.append((True, col))
             else:
-                for i in xrange(len(buf)):
+                for i in range(len(buf)):
                     if addr + i + goffs >= head and addr + i + goffs < tail:
                         colors.append((False, self.red[0]))
                     else:

@@ -25,7 +25,7 @@ class xrefsto(ColorFilter):
         for mapped, buf in buffers:
             xrefs = []
             if mapped: 
-                for i in xrange(len(buf)):
+                for i in range(len(buf)):
                     xrefs.append(self.xrefcount(addr + goffs + i))
 
                 if xrefs:
@@ -35,7 +35,7 @@ class xrefsto(ColorFilter):
                     r, g, b = self.hm(minimum, maximum, count)
                     colors.append((True, qRgb(r, g, b)))
             else:
-                for i in xrange(len(buf)):
+                for i in range(len(buf)):
                     colors.append((False, None))
             goffs += len(buf)
         return colors

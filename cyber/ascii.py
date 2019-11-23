@@ -28,8 +28,8 @@ class Ascii(ColorFilter):
             offsets = {}
             if mapped:
                 localcolors = []
-                for i in xrange(len(buf)):
-                    c = ord(buf[i])
+                for i in range(len(buf)):
+                    c = buf[i]
                     r = 0
                     printable = c >= 0x20 and c <= 0x7E
                     if printable:
@@ -46,9 +46,9 @@ class Ascii(ColorFilter):
                     # bg color
                     localcolors.append(0x101010)
 
-                for k, v in offsets.iteritems():
-                    for i in xrange(v):
-                            c = ord(buf[k+i])
+                for k, v in offsets.items():
+                    for i in range(v):
+                            c = buf[k+i]
                             
                             b = c + (0xFF - 0x7E)
                             if (c >= 0x41 and c <= 0x5A or
@@ -60,7 +60,7 @@ class Ascii(ColorFilter):
                 for color in localcolors:
                     colors.append((True, color))
             else:
-                for i in xrange(len(buf)):
+                for i in range(len(buf)):
                     colors.append((False, None))
 
         return colors

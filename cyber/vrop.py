@@ -29,8 +29,8 @@ class VROP(ColorFilter):
         self.numframes = 4
         self.maxbrightness = 100
         self.factor = self.maxbrightness/self.numframes
-        self.flicker_values = list(range(1, self.numframes+1)+range(self.numframes-1,0,-1))
-        self.flicker_idx = self.flicker_values[self.numframes/2]
+        self.flicker_values = list(range(1, self.numframes+1))+list(range(self.numframes-1,0,-1))
+        self.flicker_idx = self.flicker_values[int(self.numframes/2)]
         self.ms = 200
 
         if self.torch:
@@ -79,7 +79,7 @@ class VROP(ColorFilter):
     def on_mb_click(self, event, addr, size, mouse_offs):
         if event.button() == Qt.RightButton:
             if self.torch:
-                self.flicker_idx = self.flicker_values[self.numframes/2]
+                self.flicker_idx = self.flicker_values[int(self.numframes/2)]
                 if self.timer:
                     unregister_timer(self.timer)
                     self.timer = None
@@ -97,22 +97,22 @@ class VROP(ColorFilter):
         self.ret_locs = []
         nret = 0
         colidx = 0
-        width = self.pw.get_width()
+        width = self.pw.get_pixel_qty_per_line()
 
         for mapped, buf in buffers:
             if mapped:        
-                for i in xrange(len(buf)):
-                    c = ord(buf[i])
+                for i in range(len(buf)):
+                    c = buf[i]
                     if self._is_ret(addr+goffs+i):
                         self.ret_locs.append((nret, colidx, addr+goffs+i))
                         nret += 1
-                        col = (~((self.colormap[c/(0xff/(len(self.colormap)-1))])&0xFFFFFF) & 0xFFFFFFFF)
+                        col = (~((self.colormap[int(c/(0xff/(len(self.colormap)-1)))])&0xFFFFFF) & 0xFFFFFFFF)
                     else:
-                        col = self.colormap[c/(0xff/(len(self.colormap)-1))]
+                        col = self.colormap[int(c/(0xff/(len(self.colormap)-1)))]
                     colors.append((True,  col))
                     colidx += 1
             else:
-                for i in xrange(len(buf)):
+                for i in range(len(buf)):
                     colors.append((False, None))
                     colidx += 1
 
@@ -123,20 +123,20 @@ class VROP(ColorFilter):
             offs = self._get_selection_offs()
             end = min(offs+self.threshold+1, nret)
             cur_item_idx = 0
-            for i in xrange(offs, end):
+            for i in range(offs, end):
                 _, colidx, _ = self.ret_locs[i]
-                for row in xrange(-4, 5):
+                for row in range(-4, 5):
                     targetpxl_idx = colidx+(width*row)
-                    for neighbour in xrange(-4, 5):
+                    for neighbour in range(-4, 5):
                         realpxl_idx = targetpxl_idx+neighbour
                         brightness = (abs(row)+abs(neighbour))*10
                         # check top, bottom, left, right borders
-                        if realpxl_idx > 0 and realpxl_idx < size and realpxl_idx/width == targetpxl_idx/width:
+                        if realpxl_idx > 0 and realpxl_idx < size and int(realpxl_idx/width) == int(targetpxl_idx/width):
                             mapped, col = colors[realpxl_idx]
 
                             if mapped:
                                 # uncomment for "debugging"
-                                # col = 0xFF0000
+                                #col = 0xFF0000
                                 flicker = self.maxbrightness
                                 if self.torch:
                                     flicker = self.flicker_values[self.flicker_idx]*self.factor
@@ -155,9 +155,9 @@ class VROP(ColorFilter):
     def _get_selection_offs(self):
         offs = 0
         nret = len(self.ret_locs)
-        if nret/2 > self.threshold/2:
+        if nret > self.threshold:
             offs = nret/2 - self.threshold/2
-        return offs
+        return int(offs)
 
     def on_activate(self, idx):
         self._enable_timer()
@@ -177,7 +177,7 @@ class VROP(ColorFilter):
             i = 0
             offs = self._get_selection_offs()
             nret = len(self.ret_locs)
-            for x in xrange(offs,nret):
+            for x in range(offs,nret):
                 _, __, ret = self.ret_locs[x]
                 seg = getseg(ret)
                 textcol = self.txtcol
@@ -187,7 +187,7 @@ class VROP(ColorFilter):
                         textcol = 0xEE0000
                 ann.append((ret, self.ptrcol, "   %X  [%s]" % (ret, generate_disasm_line(ret, GENDSM_FORCE_CODE | GENDSM_REMOVE_TAGS)), textcol))
                 i += 1
-                if i > self.threshold:
+                if i > self.threshold and len(self.ret_locs) - i > 0:
                     ann.append((None, None, "<%d more not shown>" % (len(self.ret_locs) - i), self.colormap[-1]))
                     break
         return ann
