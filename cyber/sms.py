@@ -140,17 +140,16 @@ class DbgHook(DBG_Hooks):
 
 class StackyMcStackface(ColorFilter):
     name = "Stacky McStackface"
-    help = """
-    Use during debugging sessions to inspect
-    the current stack frame.
+    help = """This filter draws the current function's
+stack frame during a debug session.
 
-    Controls:
-    Middle mouse button: cycle palettes
-    Right mouse button: toggle arrow
+Controls:
+Middle mouse button: cycle color palettes
+Right mouse button: toggle arrow
 
-    Use IDACyber controls to navigate
-    through memory (CTRL-F1 for help)
-    """
+Use IDACyber controls to navigate
+through memory (Press F3 for help)
+"""
     highlight_cursor = False
     sync = False
     lock_sync = True

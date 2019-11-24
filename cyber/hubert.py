@@ -190,7 +190,7 @@ hubert = [
 
 class Hubert(ColorFilter):
     name = "Hubert"
-    help =  "Hubert"
+    help =  "Hubert ist dein Freund!"
     highlight_cursor = False
     width = 16
     lock_width = True

@@ -17,6 +17,8 @@ def H(data):
 
 class Histogram(ColorFilter):
     name = "Histogram"
+    help = """This filter creates a histogram.
+Please select a range of bytes in the disassembly view."""
     width = 256
     lock_width = True
     zoom = 2

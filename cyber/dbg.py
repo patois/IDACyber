@@ -129,7 +129,10 @@ class DbgHook(DBG_Hooks):
 
 class Dbg(ColorFilter):
     name = "Debug"
-    help = "Example for on_filter_request_update() events.\nCan be used with step-tracing enabled."
+    help = """Example for "on_filter_request_update()" events.
+This is a coverage analysis filter which should be used during
+active debugging sessions.
+It can be used with step-tracing enabled."""
     highlight_cursor = False
     sync = False
     zoom = 5

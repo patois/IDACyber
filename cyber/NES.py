@@ -3,7 +3,7 @@ from idacyber import ColorFilter
 
 class NES(ColorFilter):
     name = "NES"
-    help = "8-Bit colors"
+    help = "Simple 8-Bit color filter"
 
     def on_process_buffer(self, buffers, addr, size, mouse_offs):
         #Bit    7  6  5  4  3  2  1  0

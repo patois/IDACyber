@@ -10,7 +10,7 @@ from ida_name import get_name
 class Crawl(ColorFilter):
     name = "Crawl"
     highlight_cursor = False
-    help = 'Highlight functions and items.\nRMB toggles mode, LMB displays contextual information.'
+    help = 'This filter highlights functions or items.\nRMB toggles mode, LMB displays contextual information.'
 
     def __init__(self):
         self.hl_color = 100

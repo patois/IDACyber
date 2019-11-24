@@ -25,53 +25,51 @@ BANNER = """
 |   || . |   ||   :   ||    /  \   |   |   |  |>   \|   /  \|   :  \ 
 |   ||. ____/ |___|   ||. _____/   |___|   |_______/|_.: __/|   |___\ 
 |___| :/          |___| :/                             :/   |___|
-"""
-
-PLUGIN_HELP = """
-IDACyber Quick Manual
-====================================================================
-
-Controls:
-====================================================================
-
-  Mouse controls:
-  ---------------
-* Click + drag            - Pan graph vertically
-* Click + SHIFT + drag    - Pan graph horizontally
-* Wheel                   - Pan graph vertically
-* Wheel + SHIFT           - Pan graph horizontally
-* Wheel + CTRL            - Zoom
-* Wheel + h               - Change width (in 8th steps)
-* Click + drag + h        - Change width (in 8th steps)
-* Wheel + x               - Change width (one step)
-* Click + drag + x        - Change width (one step)
-* Double click            - Jump to address under cursor
-
-  Keyboard controls:
-  ------------------
-* CTRL-F1                 - Display this help/quick manual
-* F2                      - Display help for current filter
-* CTRL + SHIFT + F12      - Export current graph to disk
-
-* UP                      - Pan up
-* DOWN                    - Pan down
-* UP + SHIFT              - Pan up (one step)
-* DOWN + SHIFT            - Pan down (one step)
-* PAGE UP                 - Pan up a 'page'
-* PAGE DOWN               - Pan down a 'page'
-* CTRL-PLUS               - Zoom in
-* CTRL-MINUS              - Zoom out
-* B                       - Select previous filter
-* N                       - Select next filter
-* G                       - Go to address (accepts expressions)
-* S                       - Toggle 'sync' setting
-* D                       - Cycle through data renderers (off/ascii/hex)
-
 
 Check out the official project site for updates:
 
 https://github.com/patois/IDACyber
+"""
 
+PLUGIN_HELP = """
+[IDACyber]
+===============================================================
+
+  Mouse controls:
+  ---------------
+* Drag                - Pan graph vertically
+  + Shift             - Pan graph horizontally
+  + h                 - Change width (in 8th steps)
+  + x                 - Change width (one step)
+
+* Wheel               - Pan graph vertically
+  + Shift             - Pan graph horizontally
+  + Ctrl              - Zoom
+  + h                 - Change width (in 8th steps)
+  + x                 - Change width (one step)
+
+* Double click        - Jump to address under cursor
+
+  Keyboard controls:
+  ------------------
+* F2                  - Show filter information
+* F3                  - Show this information
+* Ctrl + Shift + F12  - Export current graph to disk
+
+* UP                  - Pan up
+* DOWN                - Pan down
+* UP + Shift          - Pan up (one step)
+* DOWN + Shift        - Pan down (one step)
+* PAGE UP             - Pan up a 'page'
+* PAGE DOWN           - Pan down a 'page'
+* CTRL-PLUS           - Zoom in
+* CTRL-MINUS          - Zoom out
+* B                   - Select previous filter
+* N                   - Select next filter
+* G                   - Go to address (accepts expressions)
+* S                   - Toggle 'sync' setting
+* D                   - Cycle through data representation
+* T                   - Cycle through data mode
 """
 
 
@@ -242,6 +240,7 @@ class PixelWidget(QWidget):
 
         self.form = form
         self.set_zoom(10)
+        self.is_dragging_graph = False
         self.maxPixelsPerLine = 64
         self.maxPixelsTotal = 0
         self.prev_mouse_y = 0
@@ -264,9 +263,68 @@ class PixelWidget(QWidget):
         self.lock_sync = False
         self.link_pixel = True
         self.highlight_cursor = False
+
+        self.textbox_content = None
+        self.textbox_content_type = 0
+        
         self.cur_formatter_idx = 1
-        self.formatters = list(range(3)) # TODO
+        self.formatters = [(0, "off"), (1, "ascii"), (2, "hex")]
         self.max_formatters = len(self.formatters)
+
+        # composition modes: https://doc.qt.io/qt-5/qpainter.html#CompositionMode-enum
+        """
+        self.composition_modes = [
+            (QPainter.CompositionMode_SourceOver, "QPainter.CompositionMode_SourceOver"),
+            (QPainter.CompositionMode_DestinationOver, "QPainter.CompositionMode_DestinationOver"),
+            (QPainter.CompositionMode_Clear, "QPainter.CompositionMode_Clear"),
+            (QPainter.CompositionMode_Source, "QPainter.CompositionMode_Source"),
+            (QPainter.CompositionMode_Destination, "QPainter.CompositionMode_Destination"),
+            (QPainter.CompositionMode_SourceIn, "QPainter.CompositionMode_SourceIn"),
+            (QPainter.CompositionMode_DestinationIn, "QPainter.CompositionMode_DestinationIn"),
+            (QPainter.CompositionMode_SourceOut, "QPainter.CompositionMode_SourceOut"),
+            (QPainter.CompositionMode_DestinationOut, "QPainter.CompositionMode_DestinationOut"),
+            (QPainter.CompositionMode_SourceAtop, "QPainter.CompositionMode_SourceAtop"),
+            (QPainter.CompositionMode_DestinationAtop, "QPainter.CompositionMode_DestinationAtop"),
+            (QPainter.CompositionMode_Xor, "QPainter.CompositionMode_Xor"),
+            (QPainter.CompositionMode_Plus, "QPainter.CompositionMode_Plus"),
+            (QPainter.CompositionMode_Multiply, "QPainter.CompositionMode_Multiply"),
+            (QPainter.CompositionMode_Screen, "QPainter.CompositionMode_Screen"),
+            (QPainter.CompositionMode_Overlay, "QPainter.CompositionMode_Overlay"),
+            (QPainter.CompositionMode_Darken, "QPainter.CompositionMode_Darken"),
+            (QPainter.CompositionMode_Lighten, "QPainter.CompositionMode_Lighten"),
+            (QPainter.CompositionMode_ColorDodge, "QPainter.CompositionMode_ColorDodge"),
+            (QPainter.CompositionMode_ColorBurn, "QPainter.CompositionMode_ColorBurn"),
+            (QPainter.CompositionMode_HardLight, "QPainter.CompositionMode_HardLight"),
+            (QPainter.CompositionMode_SoftLight, "QPainter.CompositionMode_SoftLight"),
+            (QPainter.CompositionMode_Difference, "QPainter.CompositionMode_Difference"),
+            (QPainter.CompositionMode_Exclusion, "QPainter.CompositionMode_Exclusion"),
+            (QPainter.RasterOp_SourceOrDestination, "QPainter.RasterOp_SourceOrDestination"),
+            (QPainter.RasterOp_SourceAndDestination, "QPainter.RasterOp_SourceAndDestination"),
+            (QPainter.RasterOp_SourceXorDestination, "QPainter.RasterOp_SourceXorDestination"),
+            (QPainter.RasterOp_NotSourceAndNotDestination, "QPainter.RasterOp_NotSourceAndNotDestination"),
+            (QPainter.RasterOp_NotSourceOrNotDestination, "QPainter.RasterOp_NotSourceOrNotDestination"),
+            (QPainter.RasterOp_NotSourceXorDestination, "QPainter.RasterOp_NotSourceXorDestination"),
+            (QPainter.RasterOp_NotSource, "QPainter.RasterOp_NotSource"),
+            (QPainter.RasterOp_NotSourceAndDestination, "QPainter.RasterOp_NotSourceAndDestination"),
+            (QPainter.RasterOp_SourceAndNotDestination, "QPainter.RasterOp_SourceAndNotDestination"),
+            (QPainter.RasterOp_NotSourceOrDestination, "QPainter.RasterOp_NotSourceOrDestination"),
+            (QPainter.RasterOp_ClearDestination, "QPainter.RasterOp_ClearDestination"),
+            (QPainter.RasterOp_SetDestination, "QPainter.RasterOp_SetDestination"),
+            (QPainter.RasterOp_NotDestination, "QPainter.RasterOp_NotDestination"),
+            (QPainter.RasterOp_SourceOrNotDestination, "QPainter.RasterOp_SourceOrNotDestination")]
+        """
+        self.composition_modes = [
+            (QPainter.CompositionMode_SourceOver, "Comp_SourceOver"),
+            (QPainter.CompositionMode_Overlay, "Comp_Overlay"),            
+            (QPainter.CompositionMode_Xor, "Comp_Xor"),
+            (QPainter.CompositionMode_SoftLight, "Comp_SoftLight"),
+            (QPainter.CompositionMode_Difference, "Comp_Difference"),
+            (QPainter.CompositionMode_Exclusion, "Comp_Exclusion"),
+            (QPainter.RasterOp_NotSourceAndNotDestination, "Raster_NotSourceAndNotDestination"),
+            (QPainter.RasterOp_SourceAndNotDestination, "Raster_SourceAndNotDestination"),
+            (QPainter.RasterOp_ClearDestination, "Raster_ClearDestination")]
+
+        self.cur_compos_mode = 0
 
         self.setMouseTracking(True)        
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -305,7 +363,7 @@ class PixelWidget(QWidget):
                 content_size = end - start#max(start, end) - content_addr
 
         # use colorfilter to render image
-        img = self.render_image(addr=content_addr, buf_size=content_size)
+        img = self.paint_image(addr=content_addr, buf_size=content_size)
 
         if img:
             """
@@ -325,12 +383,17 @@ class PixelWidget(QWidget):
             # TODO: default fonts / OS?
             # TODO: optimization
             # FIXME: there's a bug with gaps/unmapped buffers
-            if self.cur_formatter_idx and not self.fm.disable_data and zoom_level > 6:
+            if (self.cur_formatter_idx and
+                not self.fm.disable_data and
+                zoom_level >= 10 and
+                self.get_pixel_qty() < 70*70):
+
                 self.qp.setPen(QColor(Qt.white))
                 fontsize = self.qp.font().pointSize()
                 font = self.qp.font()
 
                 font.setPointSize(zoom_level/3)
+                #font.setPixelSize(zoom_level)
                 self.qp.setFont(font)
                 
                 opacity = self.qp.opacity()
@@ -342,52 +405,40 @@ class PixelWidget(QWidget):
                 x = y = 0
                 num_pixels_per_line = self.get_pixel_qty_per_line()
 
-                if self.cur_formatter_idx == 1:
-                    sample = "%c" % (ord('X'))
-                    cwidth = m.width(sample)
-                    cheight = m.height()
+                cm = self.qp.compositionMode()
+                self.qp.setCompositionMode(self.composition_modes[self.cur_compos_mode][0])
 
-                    for mapped, buf in self.buffers:
-                        for i in range(len(buf)):
-                            if mapped:
-                                b = buf[i]
-                                data = "%c" % (chr(b) if b in range(0x20, 0x7E) else ".")
+                if self.formatters[self.cur_formatter_idx][0] == 1:
+                    fmt = lambda c : "%c" %c if c in range(0x20, 0x7e) else "."
+                elif self.formatters[self.cur_formatter_idx][0] == 2:
+                    fmt = lambda c : "%02X" % c
 
-                                self.qp.drawStaticText(
-                                    self.rect_x + x*zoom_level + (zoom_level - cwidth)/2,
-                                    y*zoom_level + (zoom_level - cheight)/2,
-                                    QStaticText(data))
+                for mapped, buf in self.buffers:
+                    for i in range(len(buf)):
+                        if mapped:
+                            b = buf[i]
+                            data = fmt(b)
 
-                            x = (i + 1) % num_pixels_per_line
-                            if not x:
-                                y = y + 1
+                            self.qp.drawText(
+                                self.rect_x + x*zoom_level,
+                                y*zoom_level,
+                                zoom_level,
+                                zoom_level,
+                                Qt.AlignCenter,
+                                data)
 
-                elif self.cur_formatter_idx == 2:
-                    sample = "%02X" % (ord('X'))
-                    cwidth = m.width(sample)
-                    cheight = m.height()
+                        x = (i + 1) % num_pixels_per_line
+                        if not x:
+                            y = y + 1
 
-                    for mapped, buf in self.buffers:
-                        for i in range(len(buf)):
-                            if mapped:
-                                data = "%02X" % buf[i]
-
-                                self.qp.drawStaticText(
-                                    self.rect_x + x*zoom_level + (zoom_level - cwidth)/2,
-                                    y*zoom_level + (zoom_level - cheight)/2,
-                                    QStaticText(data))
-
-                            x = (i + 1) % num_pixels_per_line
-                            if not x:
-                                y = y + 1
-
-
+                # restore attributes
+                self.qp.setCompositionMode(cm)
                 self.qp.setOpacity(opacity)
                 font.setPointSize(fontsize)
                 self.qp.setFont(font)
 
         if self.show_address_range and self.fm.link_pixel:
-            self.render_slider(addr=content_addr, buf_size=content_size)
+            self.paint_slider(addr=content_addr, buf_size=content_size)
 
         # get and draw annotations and pointers
         annotations = self.fm.on_get_annotations(content_addr if content_addr else self.get_address(),
@@ -395,57 +446,17 @@ class PixelWidget(QWidget):
             self.mouseOffs)
 
         if annotations:
-            self.render_annotations(annotations)
+            self.paint_annotations(annotations)
+
+        self.paint_status()
+
+        if self.textbox_content:
+            self.paint_text_box()
 
         self.qp.end()
         return
 
-    def render_slider(self, addr=None, buf_size=None):
-        if addr is None or buf_size is None:
-            addr = self.base + self.offs
-            buf_size = self.get_pixel_qty()
-
-        lowest_ea = ida_idaapi.get_inf_structure().get_minEA()
-        highest_ea = ida_idaapi.get_inf_structure().get_maxEA()
-        start_offs = addr - lowest_ea
-        addr_space = highest_ea - lowest_ea
-
-        perc_s = float(start_offs) / float(addr_space)
-        perc_e = float(start_offs+buf_size) / float(addr_space)
-        
-        bar_width = 20
-
-        spaces_bar = 5
-        bar_x = self.rect_x - spaces_bar - bar_width
-        bar_y = 5
-        bar_height = self.rect().height() - 2 * bar_y
-        self.qp.fillRect(bar_x, bar_y, bar_width, bar_height, QColor(0x191919))
-
-        slider_offs_s = perc_s * bar_height
-        slider_offs_e = perc_e * bar_height
-
-        spaces_slider = 1
-        slider_x = bar_x + spaces_slider
-        slider_y = bar_y + slider_offs_s
-        slider_width = bar_width - 2 * spaces_slider
-        # limit slider height to bar_height
-        slider_height = max(min(slider_offs_e - slider_offs_s, bar_height - (slider_y - bar_y)), 4)
-
-        self.qp.fillRect(slider_x, slider_y, slider_width, slider_height, QColor(0x404040))
-
-        # draw addresses
-        top = '%X:' % self.get_address()
-        bottom = '%X' % int(self.get_address() + ((self.get_pixel_qty() / self.get_pixel_qty_per_line()) - 1) * self.get_pixel_qty_per_line())
-        self.qp.setPen(QColor(0x808080))
-        self.qp.drawText(self.rect_x - self.qp.fontMetrics().width(top) - bar_width - 2 * spaces_bar,
-            self.qp.fontMetrics().height(),
-            top)
-        self.qp.drawText(self.rect_x - self.qp.fontMetrics().width(bottom) - bar_width - 2 * spaces_bar,
-            self.rect().height() - self.qp.fontMetrics().height() / 2,
-            bottom)
-        return
-
-    def render_image(self, addr=None, buf_size=None, cursor=True):
+    def paint_image(self, addr=None, buf_size=None, cursor=True):
         size = self.size()
         self.set_pixel_qty(self.get_pixel_qty_per_line() * int(size.height() / self.pixelSize))
         if addr is None or buf_size is None:
@@ -493,7 +504,7 @@ class PixelWidget(QWidget):
 
         return img
 
-    def render_annotations(self, annotations=[]):
+    def paint_annotations(self, annotations=[]):
         a_offs = 20
         base_x = self.rect_x + self.get_pixel_qty_per_line() * self.pixelSize + a_offs + 10
         base_y = self.qp.fontMetrics().height()
@@ -539,7 +550,129 @@ class PixelWidget(QWidget):
                             self.qp.drawText(base_x - cwidth, (base_y+offs_y)/2, dirhint)
 
             offs_y += 2*base_y + 5
+
         return
+
+    def paint_slider(self, addr=None, buf_size=None):
+        if addr is None or buf_size is None:
+            addr = self.base + self.offs
+            buf_size = self.get_pixel_qty()
+
+        lowest_ea = ida_idaapi.get_inf_structure().get_minEA()
+        highest_ea = ida_idaapi.get_inf_structure().get_maxEA()
+        start_offs = addr - lowest_ea
+        addr_space = highest_ea - lowest_ea
+
+        perc_s = float(start_offs) / float(addr_space)
+        perc_e = float(start_offs+buf_size) / float(addr_space)
+        
+        bar_width = 20
+
+        spaces_bar = 5
+        bar_x = self.rect_x - spaces_bar - bar_width
+        bar_y = 5
+        bar_height = self.rect().height() - 2 * bar_y
+        self.qp.fillRect(bar_x, bar_y, bar_width, bar_height, QColor(0x191919))
+
+        slider_offs_s = perc_s * bar_height
+        slider_offs_e = perc_e * bar_height
+
+        spaces_slider = 1
+        slider_x = bar_x + spaces_slider
+        slider_y = bar_y + slider_offs_s
+        slider_width = bar_width - 2 * spaces_slider
+        # limit slider height to bar_height
+        slider_height = max(min(slider_offs_e - slider_offs_s, bar_height - (slider_y - bar_y)), 4)
+
+        self.qp.fillRect(slider_x, slider_y, slider_width, slider_height, QColor(0x404040))
+        #self.slider_coords = ((slider_x, slider_y), (slider_x+slider_width, slider_y+slider_height))
+
+        self.qp.setPen(QColor(0x808080))
+
+        # draw addresses
+        addr_low = '%X:' % self.get_address()
+        addr_hi = '%X' % int(self.get_address() + ((self.get_pixel_qty() / self.get_pixel_qty_per_line()) - 1) * self.get_pixel_qty_per_line())
+
+        self.qp.drawText(self.rect_x - self.qp.fontMetrics().width(addr_low) - bar_width - 2 * spaces_bar,
+            self.qp.fontMetrics().height(),
+            addr_low)
+        self.qp.drawText(self.rect_x - self.qp.fontMetrics().width(addr_hi) - bar_width - 2 * spaces_bar,
+            self.rect().height() - self.qp.fontMetrics().height() / 2,
+            addr_hi)
+
+        return
+
+    def display_help_box(self, text, isFilter=False):
+        if text == self.textbox_content or text is None or not(len(text)):
+            self.textbox_content = None
+            return
+        self.textbox_content_type = 0 if isFilter else 1 
+        self.textbox_content = text
+        return
+
+    def paint_text_box(self):
+        bar_width = 20
+        spaces_bar = 5
+        border_size = 15
+        base_x = self.rect().width()/2
+        if self.textbox_content_type == 0:
+            lines = self.get_filter_helptext().splitlines()
+        else:
+            lines = self.textbox_content.splitlines()
+
+        line_width = 0
+        for line in lines:
+            line_width = max(line_width, self.qp.fontMetrics().width(line))
+        
+        text_x_pos = base_x - line_width/2
+
+
+        cm = self.qp.compositionMode()
+        self.qp.setCompositionMode(QPainter.CompositionMode_HardLight)
+
+        total_text_height = len(lines) * self.qp.fontMetrics().height()
+        self.qp.fillRect(text_x_pos - border_size,
+            self.rect().height() / 2 - total_text_height/2,
+            line_width + border_size * 2,
+            total_text_height + border_size,
+            QColor(0x202020))
+
+        self.qp.setPen(QColor(Qt.white))
+        cur_line = 1
+        for line in lines:
+            text_y_pos = self.rect().height() / 2 - (len(lines) / 2) * self.qp.fontMetrics().height() + cur_line * self.qp.fontMetrics().height()
+
+            # draw status
+            self.qp.drawText(text_x_pos,
+                text_y_pos,
+                line)
+            cur_line += 1
+
+        self.qp.setCompositionMode(cm)
+
+
+        return
+
+    def paint_status(self):
+        a_offs = 20
+        base_x = self.rect_x + self.get_pixel_qty_per_line() * self.pixelSize + a_offs + 10
+
+        lines = []
+        lines.append("[Data]")
+        lines.append(" Type: %s" % self.formatters[self.cur_formatter_idx][1])
+        lines.append(" Mode: %s" % self.composition_modes[self.cur_compos_mode][1])
+
+        cur_line = 1
+        text_x_pos = base_x + 10
+        self.qp.setPen(QColor(Qt.white))
+        for line in lines:
+            text_y_pos = self.rect().height() - (self.qp.fontMetrics().height()/2) - (len(lines) - cur_line) * (self.qp.fontMetrics().height())
+
+            # draw status
+            self.qp.drawText(text_x_pos,
+                text_y_pos,
+                line)
+            cur_line += 1
 
     # functions that can be called by filters
     # must no be called from within on_process_buffer()
@@ -565,8 +698,11 @@ class PixelWidget(QWidget):
         return
     # end of functions that can be called by filters
 
-    def show_help(self):
-        ida_kernwin.info("%s" % PLUGIN_HELP)
+    def get_filter_helptext(self):
+        hlp = self.fm.help            
+        helptxt = "[%s]\n" % self.fm.name
+        helptxt += hlp if hlp else "Help unavailable."            
+        return helptxt
 
     def keyPressEvent(self, event):
         if self.key is None:
@@ -581,11 +717,16 @@ class PixelWidget(QWidget):
         shift_pressed = ((modifiers & Qt.ShiftModifier) == Qt.ShiftModifier)
         ctrl_pressed = ((modifiers & Qt.ControlModifier) == Qt.ControlModifier)
 
-        if key == Qt.Key_F1 and ctrl_pressed:
-            self.show_help()
+        if key == Qt.Key_F3:
+            self.display_help_box(PLUGIN_HELP)
+            self.repaint()
+
+        elif key == Qt.Key_F2:
+            self.display_help_box(self.get_filter_helptext(), isFilter=True)
+            self.repaint()
 
         elif key == Qt.Key_G:
-            addr = ask_addr(self.base + self.offs, 'Jump to address')
+            addr = ida_kernwin.ask_addr(self.base + self.offs, 'Jump to address')
             if addr is not None:
                 if self.sync:
                     ida_kernwin.jumpto(addr)
@@ -604,20 +745,18 @@ class PixelWidget(QWidget):
             self.cur_formatter_idx = (self.cur_formatter_idx + 1) % self.max_formatters
             self.repaint()
 
+        elif key == Qt.Key_T:
+            self.cur_compos_mode = (self.cur_compos_mode + 1) % len(self.composition_modes)
+            self.repaint()
+
         elif key == Qt.Key_N:
             self.next_filter.emit()
 
         elif key == Qt.Key_B:
             self.prev_filter.emit()
 
-        elif key == Qt.Key_F2:
-            hlp = self.fm.help
-            if hlp is None:
-                hlp = 'Help unavailable'
-            ida_kernwin.info('%s\n\n' % hlp)
-
         elif key == Qt.Key_F12 and shift_pressed and ctrl_pressed:
-            img = self.render_image(cursor = False)
+            img = self.paint_image(cursor = False)
             img = img.scaled(img.width()*self.pixelSize, img.height()*self.pixelSize, Qt.KeepAspectRatio, Qt.FastTransformation)
             done = False
             i = 0
@@ -678,23 +817,6 @@ class PixelWidget(QWidget):
 
         return
 
-    def mouseReleaseEvent(self, event):
-        self.prev_mouse_y = event.pos().y()
-        self.fm.on_mb_click(event, self.get_address(), self.get_pixel_qty(), self.mouseOffs)
-        
-        if self.get_sync_state():
-            ida_kernwin.jumpto(self.base + self.offs)
-            self.activateWindow()
-            self.setFocus()
-            self.statechanged.emit()
-        return
-
-    def mouseDoubleClickEvent(self, event):
-        if self.link_pixel and event.button() == Qt.LeftButton:
-            addr = self.base + self.offs + self._get_offs_by_pos(event.pos())
-            ida_kernwin.jumpto(addr)
-        return
-
     def wheelEvent(self, event):
         delta = round(event.angleDelta().y()/120)
 
@@ -734,26 +856,47 @@ class PixelWidget(QWidget):
         self.statechanged.emit()
         self.repaint()
         return
+
+    def mousePressEvent(self, event):
+        x = event.pos().x()
+        y = event.pos().y()
+        within_graph = (x >= self.rect_x and x < self.rect_x + self.rect_x_width)
+
+        self.is_dragging_graph = (within_graph and event.button() == Qt.LeftButton)
+        return
+
+    def mouseDoubleClickEvent(self, event):
+        if self.link_pixel and event.button() == Qt.LeftButton:
+            addr = self.base + self.offs + self._get_offs_by_pos(event.pos())
+            ida_kernwin.jumpto(addr)
+        return
+
+    def mouseReleaseEvent(self, event):
+        if (event.button() == Qt.LeftButton and self.is_dragging_graph):
+            self.is_dragging_graph = False
+
+        self.prev_mouse_y = event.pos().y()
+        self.fm.on_mb_click(event, self.get_address(), self.get_pixel_qty(), self.mouseOffs)
+        
+        if self.get_sync_state():
+            ida_kernwin.jumpto(self.base + self.offs)
+            self.activateWindow()
+            self.setFocus()
+            self.statechanged.emit()
+        return
         
     def mouseMoveEvent(self, event):
         x = event.pos().x()
         y = event.pos().y()
         within_graph = (x >= self.rect_x and x < self.rect_x + self.rect_x_width)
-        
-        if within_graph:
-            if event.buttons() == Qt.NoButton:
-                self._update_mouse_coords(event.pos())
-                self.mouseOffs = self._get_offs_by_pos(event.pos())
-                
-                if self.link_pixel and self.highlight_cursor:
-                    highlight_item(ida_bytes.get_item_head(self.get_cursor_address()))
-                elif self.highlight_cursor:
-                    unhighlight_item()
+        """(sx1, sy1), (sx2, sy2) = self.slider_coords
+        on_slider = (x >= sx1 and x< sx2 and y>= sy1 and y < sy2)"""
+ 
+        update_state = self.is_dragging_graph or within_graph
 
-                self.setToolTip(self.fm.on_get_tooltip(self.get_address(), self.get_pixel_qty(), self.mouseOffs))
-
+        if self.is_dragging_graph:
             # zoom
-            elif self.key == Qt.Key_Control:
+            if self.key == Qt.Key_Control:
                 self.set_zoom_delta(-1 if y > self.prev_mouse_y else 1)
 
             # width
@@ -778,10 +921,23 @@ class PixelWidget(QWidget):
                     
                 self.set_offset_delta(delta)
 
+        elif within_graph:
+            self._update_mouse_coords(event.pos())
+            self.mouseOffs = self._get_offs_by_pos(event.pos())
+            
+            if self.link_pixel and self.highlight_cursor:
+                highlight_item(ida_bytes.get_item_head(self.get_cursor_address()))
+            elif self.highlight_cursor:
+                unhighlight_item()
+
+            self.setToolTip(self.fm.on_get_tooltip(self.get_address(), self.get_pixel_qty(), self.mouseOffs))
+
+        if update_state:
             self.prev_mouse_y = y
             self.x = x
             self.statechanged.emit()
             self.repaint()
+
         return
 
     def set_sync_state(self, sync):

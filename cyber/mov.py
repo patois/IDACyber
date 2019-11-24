@@ -14,7 +14,8 @@ ACC_WRITE = 1
 
 class MovFilter(ColorFilter):
     name = 'Highight Load/Store'
-    help = 'Highlight memory load/store (mov) instructions.'
+    help = """Highlights memory load/store (mov) instructions.
+Currently compatible with x86 only."""
 
     def __init__(self):
         # s+b teal Color Palette http://www.color-hex.com/color-palette/309

@@ -4,7 +4,7 @@ from ida_bytes import get_item_size
 
 class GameBoy(ColorFilter):
     name = "GameBoy"
-    help =  "Grayscale"
+    help =  "Simple grayscale filter"
 
     def on_process_buffer(self, buffers, addr, size, mouse_offs):
         #Bit    7  6  5  4  3  2  1  0

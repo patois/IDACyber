@@ -12,7 +12,10 @@ from ida_kernwin import register_timer, unregister_timer, warning
 class VROP(ColorFilter):
     name = "VisualROP"
     highlight_cursor = False
-    help =  "Highlight return instructions.\n\nRMB toggles cyber mode."
+    help =  """Highlight return instructions.
+
+This filter will make you look like a real hacker.
+RMB toggles cyber mode for even more beef."""
     zoom = 10
     width = 16
 

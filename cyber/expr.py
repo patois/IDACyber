@@ -5,7 +5,8 @@ from ida_kernwin import ask_str, warning
 
 class xpression(ColorFilter):
     name = "expression"
-    help = "Specify expression for RGB color values."
+    help = """Specify expression for RGB color values.
+Press right mousebutton in order to change expression."""
 
     def __init__(self):
         self.xpr = "r, g, b"

@@ -7,7 +7,7 @@ from ida_lines import generate_disasm_line, GENDSM_FORCE_CODE, GENDSM_REMOVE_TAG
 
 class Annotations(ColorFilter):
     name = "Annotations"
-    help =  "Annotations example"
+    help =  "This filter shows how to add annotations to a graph."
 
     def __init__(self):
         # "space-gray like Color Palette" http://www.color-hex.com/color-palette/2280

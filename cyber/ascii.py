@@ -5,7 +5,7 @@ from ida_kernwin import ask_long
 
 class Ascii(ColorFilter):
     name = 'Ascii'
-    help = 'Highlight ascii strings.\n\nSet threshold using right mouse button.'
+    help = 'This filter highlights ascii strings.\n\nSet threshold using right mouse button.'
 
     def __init__(self):
         self.threshold = 4
