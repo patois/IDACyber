@@ -9,18 +9,18 @@ class Xor(ColorFilter):
     help = "Apply 8-bit XOR operation.\n\nMMB: Set XOR key.\nRMB: Pick XOR key."
 
     def __init__(self):
-        self.key = 0x90
+        self.key = 0
         return
+
+    def on_get_annotations(self, addr, size, mouse_offs):
+        return [(None, None, "Key: 0x%02x (%d)" % (self.key, self.key), None)]
 
     def _set_xor_key(self, key=None):
         if key is None:
             key = ask_long(self.key, "Specify 8-Bit XOR key")
-        if key:
+        else:
             self.key = key & 0xFF
         return
-
-    def on_activate(self, idx):
-        msg("%s filter:\n  * RMB: pick XOR key from rendered image.\n  * MMB: assign XOR key." % Xor.name)
 
     def on_mb_click(self, event, addr, size, mouse_offs):
         button = event.button()

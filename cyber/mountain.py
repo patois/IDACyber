@@ -9,14 +9,6 @@ class Mountain(ColorFilter):
     name = 'Mountain'
     help = 'Highlight functions and strings.'
 
-    def on_activate(self, idx):
-        msg('%s\n' % Mountain.help)
-        return
-
-    def on_mb_click(self, event, addr, size, mouse_offs):
-        msg('click at %X\n' % (addr + mouse_offs))
-        return
-
     def _is_string(self, ea):
         head = get_item_head(ea)
         flags = get_flags(head)

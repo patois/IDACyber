@@ -8,6 +8,7 @@ import ida_segment
 import ida_idaapi
 import ida_nalt
 import ida_idp
+from random import randrange
 
 from PyQt5.QtWidgets import (QWidget, QApplication, QCheckBox, QLabel,
     QComboBox, QSizePolicy, QVBoxLayout, QHBoxLayout)
@@ -25,53 +26,44 @@ BANNER = """
 |   || . |   ||   :   ||    /  \   |   |   |  |>   \|   /  \|   :  \ 
 |   ||. ____/ |___|   ||. _____/   |___|   |_______/|_.: __/|   |___\ 
 |___| :/          |___| :/                             :/   |___|
-
-Check out the official project site for updates:
-
 https://github.com/patois/IDACyber
 """
 
 PLUGIN_HELP = """
-[IDACyber]
-===============================================================
-
-  Mouse controls:
-  ---------------
-* Drag                - Pan graph vertically
-  + Shift             - Pan graph horizontally
-  + h                 - Change width (in 8th steps)
-  + x                 - Change width (one step)
-
-* Wheel               - Pan graph vertically
-  + Shift             - Pan graph horizontally
-  + Ctrl              - Zoom
-  + h                 - Change width (in 8th steps)
-  + x                 - Change width (one step)
-
-* Double click        - Jump to address under cursor
-
-  Keyboard controls:
-  ------------------
-* F2                  - Show filter information
-* F3                  - Show this information
-* Ctrl + Shift + F12  - Export current graph to disk
-
-* UP                  - Pan up
-* DOWN                - Pan down
-* UP + Shift          - Pan up (one step)
-* DOWN + Shift        - Pan down (one step)
-* PAGE UP             - Pan up a 'page'
-* PAGE DOWN           - Pan down a 'page'
-* CTRL-PLUS           - Zoom in
-* CTRL-MINUS          - Zoom out
-* B                   - Select previous filter
-* N                   - Select next filter
-* G                   - Go to address (accepts expressions)
-* S                   - Toggle 'sync' setting
-* D                   - Cycle through data representation
-* T                   - Cycle through data mode
+.-~========================= [IDACyber: Controls] ==========================~-.
+                         .                              .
+    Function             | Mouse (+Keyboard)            | Keyboard
+   ~~~~~~~~~~~~~~~~~~~~~~+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~~~~~~~~~~~~~~~~~~~
+                         |                              |
+    Vertical panning     | LMB, Wheel                   | page: Page up/down
+                         |                              | 8px: Up/Down
+                         |                              | 1px: Shift-Up/Down
+    Horizontal panning   | Shift+LMB, Shift+Wheel       |
+    Change width         | LMB+h (8px), LMB+x (1px),    |
+                         | Wheel+h (8px), Wheel+x (1px) |
+    Zoom                 | Ctrl+LMB, Ctrl+Wheel         | Ctrl+'-', Ctrl+'+'
+    Goto address         | Doubleclick                  | g
+    Next filter          |                              | n
+    Previous filter      |                              | b
+    Data: Off/Ascii/Hex  |                              | d
+    Data: composition    |                              | t
+    Toggle sync          |                              | s
+    Help: Controls       |                              | F2
+    Help: Current filter |                              | F3
+                         *                              *
+'-~=========================================================================~-'
 """
 
+FILTER_HELP = """
+.-~========================= [IDACyber: Filter] ============================~-.
+
+    -= %s =- 
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+%s
+                                                                              
+'-~=========================================================================~-'
+"""
 
 #   TODO:
 #   * refactor
@@ -267,7 +259,7 @@ class PixelWidget(QWidget):
         self.textbox_content = None
         self.textbox_content_type = 0
         
-        self.cur_formatter_idx = 1
+        self.cur_formatter_idx = 2
         self.formatters = [(0, "off"), (1, "ascii"), (2, "hex")]
         self.max_formatters = len(self.formatters)
 
@@ -314,8 +306,8 @@ class PixelWidget(QWidget):
             (QPainter.RasterOp_SourceOrNotDestination, "QPainter.RasterOp_SourceOrNotDestination")]
         """
         self.composition_modes = [
+            (QPainter.CompositionMode_Overlay, "Comp_Overlay"),
             (QPainter.CompositionMode_SourceOver, "Comp_SourceOver"),
-            (QPainter.CompositionMode_Overlay, "Comp_Overlay"),            
             (QPainter.CompositionMode_Xor, "Comp_Xor"),
             (QPainter.CompositionMode_SoftLight, "Comp_SoftLight"),
             (QPainter.CompositionMode_Difference, "Comp_Difference"),
@@ -610,10 +602,9 @@ class PixelWidget(QWidget):
         self.textbox_content = text
         return
 
-    def paint_text_box(self):
+    def paint_text_box(self, borderSize=6):
         bar_width = 20
         spaces_bar = 5
-        border_size = 15
         base_x = self.rect().width()/2
         if self.textbox_content_type == 0:
             lines = self.get_filter_helptext().splitlines()
@@ -631,14 +622,15 @@ class PixelWidget(QWidget):
         self.qp.setCompositionMode(QPainter.CompositionMode_HardLight)
 
         total_text_height = len(lines) * self.qp.fontMetrics().height()
-        self.qp.fillRect(text_x_pos - border_size,
-            self.rect().height() / 2 - total_text_height/2,
-            line_width + border_size * 2,
-            total_text_height + border_size,
+        self.qp.fillRect(text_x_pos - borderSize,
+            self.rect().height() / 2 - total_text_height/2 - borderSize,
+            line_width + borderSize*2,
+            total_text_height + borderSize,
             QColor(0x202020))
 
         self.qp.setPen(QColor(Qt.white))
-        cur_line = 1
+        #self.qp.setPen(QColor(0x000ff41))
+        cur_line = 0
         for line in lines:
             text_y_pos = self.rect().height() / 2 - (len(lines) / 2) * self.qp.fontMetrics().height() + cur_line * self.qp.fontMetrics().height()
 
@@ -699,9 +691,12 @@ class PixelWidget(QWidget):
     # end of functions that can be called by filters
 
     def get_filter_helptext(self):
-        hlp = self.fm.help            
-        helptxt = "[%s]\n" % self.fm.name
-        helptxt += hlp if hlp else "Help unavailable."            
+        hlp = self.fm.help
+        if not hlp:
+            hlp = "No help available :["
+        jstfy = "\n"+ 4*" "
+        hlp_fmt = jstfy + hlp.replace("\n", jstfy)
+        helptxt = FILTER_HELP % (self.fm.name, hlp_fmt)
         return helptxt
 
     def keyPressEvent(self, event):
@@ -717,11 +712,11 @@ class PixelWidget(QWidget):
         shift_pressed = ((modifiers & Qt.ShiftModifier) == Qt.ShiftModifier)
         ctrl_pressed = ((modifiers & Qt.ControlModifier) == Qt.ControlModifier)
 
-        if key == Qt.Key_F3:
+        if key == Qt.Key_F2:
             self.display_help_box(PLUGIN_HELP)
             self.repaint()
 
-        elif key == Qt.Key_F2:
+        elif key == Qt.Key_F3:
             self.display_help_box(self.get_filter_helptext(), isFilter=True)
             self.repaint()
 
@@ -974,15 +969,20 @@ class PixelWidget(QWidget):
             self.repaint()
 
     def set_addr(self, ea, new_cursor=None):
-        base = self.bh.get_base(ea)
+        _ea = ea
 
+        selection, start, end = ida_kernwin.read_range_selection(None)
+        if selection:
+            _ea = start
+
+        base = self.bh.get_base(_ea)
         self._set_base(base)
-        self._set_offs(ea - base)
+        self._set_offs(_ea - base)
 
         if new_cursor:
-            self.set_cursor_address(new_cursor)
+            self.set_cursor_offset(new_cursor)
             if self.highlight_cursor:
-                highlight_item(ea)
+                highlight_item(_ea)
 
         self.repaint()
 
@@ -1011,8 +1011,9 @@ class PixelWidget(QWidget):
     def get_cursor_address(self):
         return self.get_address() + self.mouseOffs
 
-    def set_cursor_address(self, ea):
+    def set_cursor_offset(self, ea):
         self.mouseOffs = ea - self.get_address()
+        return
 
     def get_coords_by_address(self, address):
         base = self.get_address()
