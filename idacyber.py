@@ -48,8 +48,8 @@ PLUGIN_HELP = """
     Data: Off/Ascii/Hex  |                              | d
     Data: composition    |                              | t
     Toggle sync          |                              | s
-    Help: Controls       |                              | F2
-    Help: Current filter |                              | F3
+    Help: Controls       |                              | Ctrl+F1
+    Help: Current filter |                              | Ctrl+F2
                          *                              *
 '-~=========================================================================~-'
 """
@@ -712,11 +712,11 @@ class PixelWidget(QWidget):
         shift_pressed = ((modifiers & Qt.ShiftModifier) == Qt.ShiftModifier)
         ctrl_pressed = ((modifiers & Qt.ControlModifier) == Qt.ControlModifier)
 
-        if key == Qt.Key_F2:
+        if key == Qt.Key_F1 and ctrl_pressed:
             self.display_help_box(PLUGIN_HELP)
             self.repaint()
 
-        elif key == Qt.Key_F3:
+        elif key == Qt.Key_F2 and ctrl_pressed:
             self.display_help_box(self.get_filter_helptext(), isFilter=True)
             self.repaint()
 
