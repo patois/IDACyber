@@ -30,8 +30,8 @@ def process(base, offs, b, size, width, moffs):
   # cross-hair
   if offs%width == moffs%width or int(offs/width) == int(moffs/width):
     color = (min(color[0]+0x00,0xff),
-             min(color[1]+0x10,0xff),
-             min(color[2]+0x10,0xff))
+             min(color[1]+0x04,0xff),
+             min(color[2]+0x04,0xff))
   return color""")
 
         self._compile(self.func_def)
