@@ -9,6 +9,7 @@ import ida_idaapi
 import ida_nalt
 import ida_idp
 from random import randrange
+from ida_pro import IDA_SDK_VERSION
 
 from PyQt5.QtWidgets import (QWidget, QApplication, QCheckBox, QLabel,
     QComboBox, QSizePolicy, QVBoxLayout, QHBoxLayout)
@@ -133,18 +134,8 @@ class ColorFilter():
         return None
 
 # -----------------------------------------------------------------------
-def is_ida_version(requested):
-    rv = requested.split(".")
-    kv = ida_kernwin.get_kernel_version().split(".")
-
-    count = min(len(rv), len(kv))
-    if not count:
-        return False
-
-    for i in range(count):
-        if int(kv[i]) < int(rv[i]):
-            return False
-    return True
+def is_ida_version(min_ver_required):
+    return IDA_SDK_VERSION >= min_ver_required
 
 # -----------------------------------------------------------------------
 def highlight_item(ea):
@@ -160,7 +151,7 @@ def highlight_item(ea):
 def unhighlight_item():
     global HIGHLIGHTED_ITEM
 
-    if HIGHLIGHTED_ITEM:
+    if HIGHLIGHTED_ITEM and type(HIGHLIGHTED_ITEM) is tuple:
         ida_nalt.set_item_color(HIGHLIGHTED_ITEM[0], HIGHLIGHTED_ITEM[1])
         HIGHLIGHTED_ITEM = None
 
@@ -393,7 +384,7 @@ class PixelWidget(QWidget):
                 cur_opacity = (1.0 - (full_opacity_zoom - float(min(zoom_level-1, full_opacity_zoom)))/full_opacity_zoom)
                 self.qp.setOpacity(cur_opacity)
                 
-                m = self.qp.fontMetrics()
+                #m = self.qp.fontMetrics()
                 x = y = 0
                 num_pixels_per_line = self.get_pixel_qty_per_line()
 
@@ -652,7 +643,7 @@ class PixelWidget(QWidget):
         lines = []
         lines.append("[Data]")
         lines.append(" Type: %s" % self.formatters[self.cur_formatter_idx][1])
-        lines.append(" Mode: %s" % self.composition_modes[self.cur_compos_mode][1])
+        lines.append(" Mode: %s (%d/%d)" % (self.composition_modes[self.cur_compos_mode][1], self.cur_compos_mode + 1, len(self.composition_modes)))
 
         cur_line = 1
         text_x_pos = base_x + 10
@@ -1278,7 +1269,7 @@ class IDACyberPlugin(ida_idaapi.plugin_t):
     wanted_hotkey = 'Ctrl-Shift-C'
 
     def init(self):
-        if not is_ida_version("7.0"):
+        if not is_ida_version(700):
             return ida_idaapi.PLUGIN_SKIP
 
         self.idbhook = idb_hook_t()
