@@ -1,0 +1,67 @@
+from PyQt5.QtGui import qRgb
+from PyQt5.QtCore import Qt
+from idacyber import ColorFilter
+from ida_kernwin import ask_text, warning
+from types import FunctionType
+
+class Prototype(ColorFilter):
+    name = "Prototype"
+    help = "Color filter prototyping"
+
+    def __init__(self, pw):
+        self.pw = pw
+        self.func_def=(
+"""def process(base, offs, b, size, width, moffs):
+  # print("%x+%x: %02x (total pxls %d, width %d, mouse pos %d)" % (base, offs, b, size, width, moffs))
+  return (b,b,b)""")
+        self._compile(self.func_def)
+
+    def _compile(self, text):
+        self.func_def = text
+        try:
+            self.func_code = compile(text, "", "exec")
+            self.func_call = FunctionType(self.func_code.co_consts[0], globals(), "")
+            return True
+        except:
+            pass
+        return False
+            
+
+    def _set_user_func(self):
+        while True:
+            func_def = ask_text(0, self.func_def, "Please define function (must return tuple(RR,GG,BB) format")
+            if func_def is None:
+                break
+            if self._compile(func_def):
+                break
+            warning("Errors found!")
+            
+
+    def on_mb_click(self, event, addr, size, mouse_offs):
+        if event.button() == Qt.RightButton:
+            self._set_user_func()
+
+    def on_process_buffer(self, buffers, addr, size, mouse_offs):
+        colors = []
+        width = self.pw.get_pixel_qty_per_line()
+
+        for mapped, buf in buffers:
+            if mapped:
+                for offs in range(len(buf)):
+                    r, g, b = self.func_call(
+                        addr,
+                        offs,
+                        buf[offs]&0xff,
+                        size,
+                        width,
+                        mouse_offs)
+                    colors.append((True, qRgb(r&0xFF, g&0xFF, b&0xFF)))
+            else:
+                colors += [(False, None) for i in range(len(buf))]
+        return colors
+
+def FILTER_INIT(pw):
+    return Prototype(pw)
+    
+def FILTER_EXIT():
+    return
