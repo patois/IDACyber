@@ -6,14 +6,34 @@ from types import FunctionType
 
 class Prototype(ColorFilter):
     name = "Prototype"
-    help = "Color filter prototyping"
+    help = "Right click: edit current filter function"
+    highlight_cursor = False
 
     def __init__(self, pw):
         self.pw = pw
         self.func_def=(
-"""def process(base, offs, b, size, width, moffs):
+"""
+def process(base, offs, b, size, width, moffs):
   # print("%x+%x: %02x (total pxls %d, width %d, mouse pos %d)" % (base, offs, b, size, width, moffs))
-  return (b,b,b)""")
+  # return (b,b,b)
+
+  if (b == 0x70 or b == 0x47):
+    # detect potential thumb-mode pattern
+    color = (0x59, 0x7c, 0x92)
+  elif (b & 0xf0 == 0xe0):
+    # detect potential ARM pattern
+    color = (0x00, 0x40, 0x67)
+  else:
+    # default color
+    color = (0x00, 0x10, 0x1b)
+
+  # cross-hair
+  if offs%width == moffs%width or int(offs/width) == int(moffs/width):
+    color = (min(color[0]+0x00,0xff),
+             min(color[1]+0x10,0xff),
+             min(color[2]+0x10,0xff))
+  return color""")
+
         self._compile(self.func_def)
 
     def _compile(self, text):
@@ -26,7 +46,6 @@ class Prototype(ColorFilter):
             pass
         return False
             
-
     def _set_user_func(self):
         while True:
             func_def = ask_text(0, self.func_def, "Please define function (must return tuple(RR,GG,BB) format")
@@ -34,8 +53,7 @@ class Prototype(ColorFilter):
                 break
             if self._compile(func_def):
                 break
-            warning("Errors found!")
-            
+            warning("Errors found!")          
 
     def on_mb_click(self, event, addr, size, mouse_offs):
         if event.button() == Qt.RightButton:
@@ -48,14 +66,17 @@ class Prototype(ColorFilter):
         for mapped, buf in buffers:
             if mapped:
                 for offs in range(len(buf)):
-                    r, g, b = self.func_call(
-                        addr,
-                        offs,
-                        buf[offs]&0xff,
-                        size,
-                        width,
-                        mouse_offs)
-                    colors.append((True, qRgb(r&0xFF, g&0xFF, b&0xFF)))
+                    try:
+                        r, g, b = self.func_call(
+                            addr,
+                            offs,
+                            buf[offs]&0xff,
+                            size,
+                            width,
+                            mouse_offs)
+                        colors.append((True, qRgb(r&0xFF, g&0xFF, b&0xFF)))
+                    except:
+                        colors.append((False, None))
             else:
                 colors += [(False, None) for i in range(len(buf))]
         return colors
