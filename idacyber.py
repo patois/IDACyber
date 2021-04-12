@@ -18,7 +18,7 @@ from PyQt5.QtGui import (QPainter, QColor, QFont, QPen,
 from PyQt5.QtCore import Qt, QObject, pyqtSignal, QRect, QSize, QPoint
 
 
-__author__ = 'Dennis Elser'
+__author__ = '@pat0is'
 
 BANNER = """
 .___ .______  .______  ._______ ____   ____._______ ._______.______  
@@ -795,9 +795,7 @@ class PixelWidget(QWidget):
 
         if update:
             if self.get_sync_state():
-                ida_kernwin.jumpto(self.base + self.offs)
-                self.activateWindow()
-                self.setFocus()
+                ida_kernwin.jumpto(self.base + self.offs, -1, ida_kernwin.UIJMP_ANYVIEW)
             self.statechanged.emit()
             self.repaint()
 
@@ -820,9 +818,7 @@ class PixelWidget(QWidget):
             self.set_offset_delta(delta)
 
             if self.get_sync_state():
-                ida_kernwin.jumpto(self.base + self.offs)
-                self.activateWindow()
-                self.setFocus()
+                ida_kernwin.jumpto(self.base + self.offs, -1, ida_kernwin.UIJMP_ANYVIEW)
 
         elif self.key == Qt.Key_H:
             if not self.lock_width:
@@ -835,9 +831,7 @@ class PixelWidget(QWidget):
             self.set_offset_delta(delta * self.get_pixel_qty_per_line())
             
             if self.get_sync_state():
-                ida_kernwin.jumpto(self.base + self.offs)
-                self.activateWindow()
-                self.setFocus()
+                ida_kernwin.jumpto(self.base + self.offs, -1, ida_kernwin.UIJMP_ANYVIEW)
 
         self.statechanged.emit()
         self.repaint()
@@ -854,7 +848,7 @@ class PixelWidget(QWidget):
     def mouseDoubleClickEvent(self, event):
         if self.link_pixel and event.button() == Qt.LeftButton:
             addr = self.base + self.offs + self._get_offs_by_pos(event.pos())
-            ida_kernwin.jumpto(addr)
+            ida_kernwin.jumpto(addr)        
         return
 
     def mouseReleaseEvent(self, event):
@@ -865,9 +859,7 @@ class PixelWidget(QWidget):
         self.fm.on_mb_click(event, self.get_address(), self.get_pixel_qty(), self.mouseOffs)
         
         if self.get_sync_state():
-            ida_kernwin.jumpto(self.base + self.offs)
-            self.activateWindow()
-            self.setFocus()
+            ida_kernwin.jumpto(self.base + self.offs, -1, ida_kernwin.UIJMP_ANYVIEW)
             self.statechanged.emit()
         return
         
@@ -1269,7 +1261,7 @@ class IDACyberPlugin(ida_idaapi.plugin_t):
     wanted_hotkey = 'Ctrl-Shift-C'
 
     def init(self):
-        if not is_ida_version(700):
+        if not is_ida_version(730):
             return ida_idaapi.PLUGIN_SKIP
 
         self.idbhook = idb_hook_t()
@@ -1282,7 +1274,7 @@ class IDACyberPlugin(ida_idaapi.plugin_t):
             ida_kernwin.PluginForm.WOPN_PERSIST |
             ida_kernwin.PluginForm.WCLS_CLOSE_LATER)
 
-        ida_kernwin.msg('%s\n+ %s loaded.\n+ %s opens a new instance.\n+ Ctrl-F1 for help.\n\n' % (
+        ida_kernwin.msg('%s\n+ %s loaded.\n+ %s opens a new instance.\n+ Ctrl-F1 for help, Ctrl-F2 for filter-help.\n\n' % (
             BANNER,
             IDACyberPlugin.wanted_name,
             IDACyberPlugin.wanted_hotkey))
