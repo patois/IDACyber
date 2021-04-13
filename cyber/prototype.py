@@ -41,19 +41,20 @@ def process(base, offs, b, size, width, moffs):
         try:
             self.func_code = compile(text, "", "exec")
             self.func_call = FunctionType(self.func_code.co_consts[0], globals(), "")
-            return True
-        except:
-            pass
-        return False
+            return (True, "")
+        except Exception as e:
+            return (False, e)
+        return (False, "")
             
     def _set_user_func(self):
         while True:
             func_def = ask_text(0, self.func_def, "Please define function (must return tuple(RR,GG,BB) format")
             if func_def is None:
                 break
-            if self._compile(func_def):
+            res, s = self._compile(func_def)
+            if res:
                 break
-            warning("Errors found!")          
+            warning("%s" % s)
 
     def on_mb_click(self, event, addr, size, mouse_offs):
         if event.button() == Qt.RightButton:
@@ -78,7 +79,7 @@ def process(base, offs, b, size, width, moffs):
                     except:
                         colors.append((False, None))
             else:
-                colors += [(False, None) for i in range(len(buf))]
+                colors += [(False, None)]*len(buf)
         return colors
 
 def FILTER_INIT(pw):

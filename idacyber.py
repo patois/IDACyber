@@ -18,7 +18,7 @@ from PyQt5.QtGui import (QPainter, QColor, QFont, QPen,
 from PyQt5.QtCore import Qt, QObject, pyqtSignal, QRect, QSize, QPoint
 
 
-__author__ = '@pat0is'
+__author__ = 'Dennis Elser'
 
 BANNER = """
 .___ .______  .______  ._______ ____   ____._______ ._______.______  
@@ -998,6 +998,9 @@ class PixelWidget(QWidget):
         self.mouseOffs = ea - self.get_address()
         return
 
+    def get_cursor_offset(self):
+        return self.mouseOffs
+
     def get_coords_by_address(self, address):
         base = self.get_address()
         # if address is visible in current window
@@ -1140,7 +1143,7 @@ class IDACyberForm(ida_kernwin.PluginForm):
     def _change_screen_ea(self):
         if self.pw.get_sync_state():
             ea = ida_kernwin.get_screen_ea()
-            self.pw.set_addr(ea, new_cursor=ea)
+            self.pw.set_addr(ea, new_cursor=ea + self.pw.get_cursor_offset())
             # TODO
             self._update_widget()
 
