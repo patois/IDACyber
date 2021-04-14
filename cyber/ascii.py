@@ -60,8 +60,7 @@ class Ascii(ColorFilter):
                 for color in localcolors:
                     colors.append((True, color))
             else:
-                for i in range(len(buf)):
-                    colors.append((False, None))
+                colors += [(False, None)]*len(buf)
 
         return colors
     

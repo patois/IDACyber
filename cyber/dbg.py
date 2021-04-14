@@ -208,8 +208,7 @@ It can be used with step-tracing enabled."""
                             colors.append((True, self.palette[self._byte2coloridx(c)]))
                     i += 1
             else:
-                for i in range(len(buf)):
-                    colors.append((False, None))
+                colors += [(False, None)]*len(buf)
             goffs += len(buf)
         return colors
     

@@ -19,8 +19,7 @@ class GameBoy(ColorFilter):
                     gray = red * 0.3 + green * 0.59 + blue * 0.11
                     colors.append((True, qRgb(gray, gray, gray)))
             else:
-                for i in range(len(buf)):
-                    colors.append((False, None))
+                colors += [(False, None)]*len(buf)
         return colors
 
     def on_get_tooltip(self, addr, size, mouse_offs):

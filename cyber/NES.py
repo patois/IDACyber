@@ -17,8 +17,7 @@ class NES(ColorFilter):
                     blue = (c << 6) & 0xC0
                     colors.append((True, qRgb(red, green, blue)))
             else:
-                for i in range(len(buf)):
-                    colors.append((False, None))
+                colors += [(False, None)]*len(buf)
         return colors
     
 def FILTER_INIT(pw):

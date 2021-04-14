@@ -18,6 +18,7 @@ class Xor(ColorFilter):
     def _set_xor_key(self, key=None):
         if key is None:
             key = ask_long(self.key, "Specify 8-Bit XOR key")
+            self.key = key & 0xFF
         else:
             self.key = key & 0xFF
         return
@@ -39,8 +40,7 @@ class Xor(ColorFilter):
                     c = (c ^ self.key) & 0xFF
                     colors.append((True, qRgb(0, c, c)))
             else:
-                for i in range(len(buf)):
-                    colors.append((False, None))
+                colors += [(False, None)]*len(buf)
         return colors
 
     def on_get_tooltip(self, addr, size, mouse_offs):

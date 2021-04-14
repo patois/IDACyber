@@ -316,8 +316,7 @@ through memory (Press F3 for help)
 
             # unmapped, transparency
             else:
-                for i in range(len(buf)):
-                    colors.append((False, None))
+                colors += [(False, None)]*len(buf)
             goffs += len(buf)
         
         return colors

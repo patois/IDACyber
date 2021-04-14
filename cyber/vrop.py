@@ -174,7 +174,6 @@ RMB toggles cyber mode for even more beef."""
 
     def on_get_annotations(self, address, size, mouse_offs):
         caption = "Return instructions:"
-        spaces = 40*'-'
         ann = [(None, None, caption, self.colormap[-1])]
         if len(self.ret_locs):
             i = 0

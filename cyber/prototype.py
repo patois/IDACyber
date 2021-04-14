@@ -11,6 +11,7 @@ class Prototype(ColorFilter):
 
     def __init__(self, pw):
         self.pw = pw
+        self.func_call = None
         self.func_def=(
 """
 def process(base, offs, b, size, width, moffs):

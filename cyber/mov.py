@@ -106,8 +106,7 @@ Currently compatible with x86 only."""
                         i += 1
             else:
                 # indicate transparent area
-                for i in range(len(buf)):
-                    colors.append((False, None))
+                colors += [(False, None)]*len(buf)
 
             goffs += len(buf)
         return colors

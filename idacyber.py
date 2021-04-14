@@ -18,7 +18,7 @@ from PyQt5.QtGui import (QPainter, QColor, QFont, QPen,
 from PyQt5.QtCore import Qt, QObject, pyqtSignal, QRect, QSize, QPoint
 
 
-__author__ = 'Dennis Elser'
+__author__ = '@pat0is'
 
 BANNER = """
 .___ .______  .______  ._______ ____   ____._______ ._______.______  
@@ -51,6 +51,7 @@ PLUGIN_HELP = """
     Toggle sync          |                              | s
     Help: Controls       |                              | Ctrl+F1
     Help: Current filter |                              | Ctrl+F2
+    Escape               |                              | Close
                          *                              *
 '-~=========================================================================~-'
 """
@@ -182,7 +183,6 @@ class IDBBufHandler():
         buffers = []
         base = offs = 0
         i = 0
-        base = offs = 0
 
         result = ida_bytes.get_bytes_and_mask(ea, count)
         if result:
@@ -224,6 +224,7 @@ class PixelWidget(QWidget):
         self.form = form
         self.set_zoom(10)
         self.is_dragging_graph = False
+        self.is_scrolling = False
         self.maxPixelsPerLine = 64
         self.maxPixelsTotal = 0
         self.prev_mouse_y = 0
@@ -246,7 +247,11 @@ class PixelWidget(QWidget):
         self.lock_sync = False
         self.link_pixel = True
         self.highlight_cursor = False
-
+        self.slider_x = 0
+        self.slider_y = 0
+        self.slider_width = 0
+        self.slider_height = 0
+        self.babs = 0
         self.textbox_content = None
         self.textbox_content_type = 0
         
@@ -451,7 +456,7 @@ class PixelWidget(QWidget):
         pixels = self.fm.on_process_buffer(self.buffers, addr, self.get_pixel_qty(), self.mouseOffs)
 
         x = y = 0
-        # transparency effect for unmapped bytes
+        # "transparency" effect for unmapped bytes
         transparency_dark = [qRgb(0x2F,0x4F,0x4F), qRgb(0x00,0x00,0x00)]
         transparency_err = [qRgb(0x7F,0x00,0x00), qRgb(0x33,0x00,0x00)]
         for mapped, pix in pixels:
@@ -550,24 +555,23 @@ class PixelWidget(QWidget):
         perc_e = float(start_offs+buf_size) / float(addr_space)
         
         bar_width = 20
-
         spaces_bar = 5
         bar_x = self.rect_x - spaces_bar - bar_width
         bar_y = 5
         bar_height = self.rect().height() - 2 * bar_y
         self.qp.fillRect(bar_x, bar_y, bar_width, bar_height, QColor(0x191919))
-
+        self.babs = self.rect().height() #bar_height - bar_y
         slider_offs_s = perc_s * bar_height
         slider_offs_e = perc_e * bar_height
 
         spaces_slider = 1
-        slider_x = bar_x + spaces_slider
-        slider_y = bar_y + slider_offs_s
-        slider_width = bar_width - 2 * spaces_slider
+        self.slider_x = bar_x + spaces_slider
+        self.slider_y = bar_y + slider_offs_s
+        self.slider_width = bar_width - 2 * spaces_slider
         # limit slider height to bar_height
-        slider_height = max(min(slider_offs_e - slider_offs_s, bar_height - (slider_y - bar_y)), 4)
+        self.slider_height = max(min(slider_offs_e - slider_offs_s, bar_height - (self.slider_y - bar_y)), 4)
 
-        self.qp.fillRect(slider_x, slider_y, slider_width, slider_height, QColor(0x404040))
+        self.qp.fillRect(self.slider_x, self.slider_y, self.slider_width, self.slider_height, QColor(0x404040))
         #self.slider_coords = ((slider_x, slider_y), (slider_x+slider_width, slider_y+slider_height))
 
         self.qp.setPen(QColor(0x808080))
@@ -594,8 +598,6 @@ class PixelWidget(QWidget):
         return
 
     def paint_text_box(self, borderSize=6):
-        bar_width = 20
-        spaces_bar = 5
         base_x = self.rect().width()/2
         if self.textbox_content_type == 0:
             lines = self.get_filter_helptext().splitlines()
@@ -658,7 +660,7 @@ class PixelWidget(QWidget):
             cur_line += 1
 
     # functions that can be called by filters
-    # must no be called from within on_process_buffer()
+    # must not be called from within on_process_buffer()
     def on_filter_request_update(self, ea=None, center=True):
         if not ea:
             self.repaint()
@@ -709,6 +711,10 @@ class PixelWidget(QWidget):
 
         elif key == Qt.Key_F2 and ctrl_pressed:
             self.display_help_box(self.get_filter_helptext(), isFilter=True)
+            self.repaint()
+
+        elif key == Qt.Key_Escape:
+            self.display_help_box(None)
             self.repaint()
 
         elif key == Qt.Key_G:
@@ -841,8 +847,11 @@ class PixelWidget(QWidget):
         x = event.pos().x()
         y = event.pos().y()
         within_graph = (x >= self.rect_x and x < self.rect_x + self.rect_x_width)
+        within_slider = (x >= self.slider_x and x < self.slider_x + self.slider_width and
+                        y >= self.slider_y and y < self.slider_y + self.slider_height)
 
         self.is_dragging_graph = (within_graph and event.button() == Qt.LeftButton)
+        self.is_scrolling = (within_slider and event.button() == Qt.LeftButton)
         return
 
     def mouseDoubleClickEvent(self, event):
@@ -852,8 +861,11 @@ class PixelWidget(QWidget):
         return
 
     def mouseReleaseEvent(self, event):
-        if (event.button() == Qt.LeftButton and self.is_dragging_graph):
-            self.is_dragging_graph = False
+        if event.button() == Qt.LeftButton:
+            if self.is_dragging_graph:
+                self.is_dragging_graph = False
+            elif self.is_scrolling:
+                self.is_scrolling = False
 
         self.prev_mouse_y = event.pos().y()
         self.fm.on_mb_click(event, self.get_address(), self.get_pixel_qty(), self.mouseOffs)
@@ -867,12 +879,18 @@ class PixelWidget(QWidget):
         x = event.pos().x()
         y = event.pos().y()
         within_graph = (x >= self.rect_x and x < self.rect_x + self.rect_x_width)
-        """(sx1, sy1), (sx2, sy2) = self.slider_coords
-        on_slider = (x >= sx1 and x< sx2 and y>= sy1 and y < sy2)"""
- 
-        update_state = self.is_dragging_graph or within_graph
+        update_state = self.is_dragging_graph or within_graph or self.is_scrolling
 
-        if self.is_dragging_graph:
+        if self.is_scrolling:
+            if y != self.prev_mouse_y:
+                lowest_ea = ida_idaapi.get_inf_structure().get_minEA()
+                highest_ea = ida_idaapi.get_inf_structure().get_maxEA()
+                new_offs = int((y/self.babs) * (highest_ea-lowest_ea))
+                #print("%f" % (y/self.babs))
+                self.set_addr(max(min(lowest_ea+new_offs, highest_ea), lowest_ea))
+                return
+
+        elif self.is_dragging_graph:
             # zoom
             if self.key == Qt.Key_Control:
                 self.set_zoom_delta(-1 if y > self.prev_mouse_y else 1)

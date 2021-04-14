@@ -39,8 +39,7 @@ Press right mousebutton in order to change expression."""
                     r, g, b = eval(self.xpr)
                     colors.append((True, qRgb(r&0xFF, g&0xFF, b&0xFF)))
             else:
-                for i in range(len(buf)):
-                    colors.append((False, None))
+                colors += [(False, None)]*len(buf)
         return colors
 
 def FILTER_INIT(pw):
