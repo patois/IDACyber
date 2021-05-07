@@ -51,7 +51,7 @@ PLUGIN_HELP = """
     Toggle sync          |                              | s
     Help: Controls       |                              | Ctrl+F1
     Help: Current filter |                              | Ctrl+F2
-    Escape               |                              | Close
+    Close help           |                              | Escape
                          *                              *
 '-~=========================================================================~-'
 """
@@ -82,8 +82,6 @@ FILTER_HELP = """
 #   * implement color filter: apply recorded trace log to graph
 #   * implement color filter: colorize instructions/instruction groups
 #   * implement color filter: Entropy visualization
-#   * fix Hubert (beatcounter functionality, frame adjustment)
-#   * draggable slider/scrollbar?
 
 # I believe this is Windows-only?
 FONT_DEFAULT = "Consolas"
@@ -377,10 +375,10 @@ class PixelWidget(QWidget):
                 self.get_pixel_qty() < 70*70):
 
                 self.qp.setPen(QColor(Qt.white))
-                fontsize = self.qp.font().pointSize()
+                fontsize = self.qp.font().pointSizeF()
                 font = self.qp.font()
 
-                font.setPointSize(zoom_level/3)
+                font.setPointSizeF(zoom_level*0.55)
                 #font.setPixelSize(zoom_level)
                 self.qp.setFont(font)
                 
@@ -422,7 +420,7 @@ class PixelWidget(QWidget):
                 # restore attributes
                 self.qp.setCompositionMode(cm)
                 self.qp.setOpacity(opacity)
-                font.setPointSize(fontsize)
+                font.setPointSizeF(fontsize)
                 self.qp.setFont(font)
 
         if self.show_address_range and self.fm.link_pixel:
