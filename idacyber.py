@@ -8,6 +8,7 @@ import ida_segment
 import ida_idaapi
 import ida_nalt
 import ida_idp
+import ida_ida
 from random import randrange
 from ida_pro import IDA_SDK_VERSION
 
@@ -544,8 +545,8 @@ class PixelWidget(QWidget):
             addr = self.base + self.offs
             buf_size = self.get_pixel_qty()
 
-        lowest_ea = ida_idaapi.get_inf_structure().get_minEA()
-        highest_ea = ida_idaapi.get_inf_structure().get_maxEA()
+        lowest_ea = ida_ida.inf_get_min_ea()
+        highest_ea = ida_ida.inf_get_max_ea()
         start_offs = addr - lowest_ea
         addr_space = highest_ea - lowest_ea
 
@@ -721,8 +722,8 @@ class PixelWidget(QWidget):
                 if self.sync:
                     ida_kernwin.jumpto(addr)
                 else:
-                    minea = ida_idaapi.get_inf_structure().get_minEA()
-                    maxea = ida_idaapi.get_inf_structure().get_maxEA()
+                    minea = ida_ida.inf_get_min_ea()
+                    maxea = ida_ida.inf_get_max_ea()
                     dst = min(max(addr, minea), maxea)
                     self.set_addr(dst)
 
@@ -881,8 +882,8 @@ class PixelWidget(QWidget):
 
         if self.is_scrolling:
             if y != self.prev_mouse_y:
-                lowest_ea = ida_idaapi.get_inf_structure().get_minEA()
-                highest_ea = ida_idaapi.get_inf_structure().get_maxEA()
+                lowest_ea = ida_ida.inf_get_min_ea()
+                highest_ea = ida_ida.inf_get_max_ea()
                 new_offs = int((y/self.babs) * (highest_ea-lowest_ea))
                 #print("%f" % (y/self.babs))
                 self.set_addr(max(min(lowest_ea+new_offs, highest_ea), lowest_ea))
@@ -1047,8 +1048,8 @@ class PixelWidget(QWidget):
 
     def set_offset_delta(self, doffs):
         newea = self.base + self.offs - doffs
-        minea = ida_idaapi.get_inf_structure().get_minEA()
-        maxea = ida_idaapi.get_inf_structure().get_maxEA()
+        minea = ida_ida.inf_get_min_ea()
+        maxea = ida_ida.inf_get_max_ea()
         if doffs < 0:
             delta = doffs if newea < maxea else doffs - (maxea - newea)
         else:
