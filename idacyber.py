@@ -1,5 +1,13 @@
 import os
 import sys
+from random import randrange
+from math import floor
+
+from PyQt5.QtWidgets import (QWidget, QCheckBox, QLabel, QComboBox, QSizePolicy,
+    QVBoxLayout, QHBoxLayout)
+from PyQt5.QtGui import QPainter, QColor, QFont, QImage, qRgb, QPainterPath
+from PyQt5.QtCore import Qt, QObject, pyqtSignal, QRect, QPoint
+
 
 import ida_kernwin
 import ida_diskio
@@ -9,16 +17,9 @@ import ida_idaapi
 import ida_nalt
 import ida_idp
 import ida_ida
-from random import randrange
 from ida_pro import IDA_SDK_VERSION
 
-from PyQt5.QtWidgets import (QWidget, QCheckBox, QLabel,
-    QComboBox, QSizePolicy, QVBoxLayout, QHBoxLayout)
-from PyQt5.QtGui import (QPainter, QColor, QFont, QImage, qRgb, QPainterPath)
-from PyQt5.QtCore import Qt, QObject, pyqtSignal, QRect, QPoint
-
-
-__author__ = '@pat0is'
+__author__ = 'Dennis Elser'
 
 BANNER = """
 .___ .______  .______  ._______ ____   ____._______ ._______.______  
@@ -85,7 +86,7 @@ FILTER_HELP = """
 
 # I believe this is Windows-only?
 FONT_DEFAULT = "Consolas"
-HL_COLOR = 0x0037CC
+HL_COLOR = ida_kernwin.CK_EXTRA3
 HIGHLIGHTED_ITEM = None
 
 class ColorFilter():
@@ -139,20 +140,28 @@ def is_ida_version(min_ver_required):
 # -----------------------------------------------------------------------
 def highlight_item(ea):
     global HIGHLIGHTED_ITEM
-
-    unhighlight_item()
-    
-    current_color = ida_nalt.get_item_color(ea)
-    HIGHLIGHTED_ITEM = (ea, current_color)
-    ida_nalt.set_item_color(ea, HL_COLOR)
+    HIGHLIGHTED_ITEM = ea
 
 # -----------------------------------------------------------------------
 def unhighlight_item():
     global HIGHLIGHTED_ITEM
+    HIGHLIGHTED_ITEM = None
 
-    if HIGHLIGHTED_ITEM and type(HIGHLIGHTED_ITEM) is tuple:
-        ida_nalt.set_item_color(HIGHLIGHTED_ITEM[0], HIGHLIGHTED_ITEM[1])
-        HIGHLIGHTED_ITEM = None
+# -----------------------------------------------------------------------
+class UIHook(ida_kernwin.UI_Hooks):
+    def __init__(self):
+        ida_kernwin.UI_Hooks.__init__(self)
+
+    def get_lines_rendering_info(self, out, widget, rin):
+        if HIGHLIGHTED_ITEM and ida_kernwin.get_widget_type(widget) == ida_kernwin.BWN_DISASM:
+            ea = HIGHLIGHTED_ITEM
+            for section_lines in rin.sections_lines:
+                for line in section_lines:
+                    line_ea = line.at.toea()
+                    if ea == line_ea:
+                        e = ida_kernwin.line_rendering_output_entry_t(line)
+                        e.bg_color = HL_COLOR
+                        out.entries.push_back(e)
 
 # -----------------------------------------------------------------------
 class ScreenEAHook(ida_kernwin.View_Hooks):
@@ -161,9 +170,8 @@ class ScreenEAHook(ida_kernwin.View_Hooks):
         self.sh = SignalHandler()
         self.new_ea = self.sh.ida_newea
     
-    def view_loc_changed(self, widget, curloc, prevloc):
-        if curloc is not prevloc:
-            self.new_ea.emit()
+    def screen_ea_changed(self, ea, prev_ea):
+        self.new_ea.emit()
 
 # -----------------------------------------------------------------------
 class SignalHandler(QObject):    
@@ -331,7 +339,7 @@ class PixelWidget(QWidget):
         # set leftmost x-coordinate of graph
         zoom_level = self.get_zoom()        
         self.rect_x_width = self.get_pixel_qty_per_line() * zoom_level       
-        self.rect_x = int(self.rect().width() / 2) - int(self.rect_x_width / 2)
+        self.rect_x = floor(self.rect().width() / 2) - floor(self.rect_x_width / 2)
 
         self.qp.begin(self)
 
@@ -362,7 +370,7 @@ class PixelWidget(QWidget):
             # draw image
             self.qp.drawImage(
                 QRect(QPoint(self.rect_x, 0), 
-                QPoint(self.rect_x + self.get_pixel_qty_per_line() * zoom_level, int((self.get_pixel_qty() / self.get_pixel_qty_per_line()) * zoom_level))),
+                QPoint(self.rect_x + self.get_pixel_qty_per_line() * zoom_level, floor((self.get_pixel_qty() / self.get_pixel_qty_per_line()) * zoom_level))),
                 img)
 
             # TODO: pen color contrast
@@ -445,13 +453,13 @@ class PixelWidget(QWidget):
 
     def paint_image(self, addr=None, buf_size=None, cursor=True):
         size = self.size()
-        self.set_pixel_qty(self.get_pixel_qty_per_line() * int(size.height() / self.pixelSize))
+        self.set_pixel_qty(self.get_pixel_qty_per_line() * floor(size.height() / self.pixelSize))
         if addr is None or buf_size is None:
             addr = self.base + self.offs
             buf_size = self.get_pixel_qty()
 
         self.buffers = self.bh.get_buffers(addr, buf_size)
-        img = QImage(self.get_pixel_qty_per_line(), int(size.height() / self.pixelSize), QImage.Format_RGB32)
+        img = QImage(self.get_pixel_qty_per_line(), floor(size.height() / self.pixelSize), QImage.Format_RGB32)
         pixels = self.fm.on_process_buffer(self.buffers, addr, self.get_pixel_qty(), self.mouseOffs)
 
         x = y = 0
@@ -501,7 +509,7 @@ class PixelWidget(QWidget):
         for coords, arr_color, ann, txt_color in annotations:
             # draw arrow (experimental / WIP)
             self.qp.setPen(QColor(Qt.white if txt_color is None else txt_color))
-            self.qp.drawText(base_x+10, int((base_y+offs_y)/2), ann)
+            self.qp.drawText(base_x+10, floor((base_y+offs_y)/2), ann)
             target_x = target_y = None
 
             if coords:
@@ -518,12 +526,13 @@ class PixelWidget(QWidget):
 
                     self.qp.setPen(QColor(Qt.white if arr_color is None else arr_color))
                     path = QPainterPath()
-                    path.moveTo(base_x+offs_x, (int(base_y+offs_y)/2)-int(base_y/2))
+                    
+                    path.moveTo(base_x+offs_x, (floor(base_y+offs_y)/2-base_y/2))
+                    path.lineTo(base_x+offs_x - 4 - a_offs, floor((base_y+offs_y)/2-base_y/2))  # left
+                    path.lineTo(base_x+offs_x - 4 - a_offs, floor((target_y/10)*9 + self.get_zoom()/2)) # down
+                    path.lineTo(self.rect_x + target_x + floor(self.get_zoom() / 2), floor((target_y/10)*9 + self.get_zoom()/2)) # left
+                    path.lineTo(self.rect_x + target_x + floor(self.get_zoom() / 2), target_y + floor(self.get_zoom()/2)) # down
 
-                    path.lineTo(base_x+offs_x - 4 - a_offs, int((base_y+offs_y)/2)-int(base_y/2))  # left
-                    path.lineTo(base_x+offs_x - 4 - a_offs, int(target_y/10)*9 + int(self.get_zoom()/2)) # down
-                    path.lineTo(self.rect_x + target_x + int(self.get_zoom() / 2), int((target_y/10)*9) + int(self.get_zoom()/2)) # left
-                    path.lineTo(self.rect_x + target_x + int(self.get_zoom() / 2), target_y + int(self.get_zoom()/2)) # down
                     a_offs = max(a_offs-2, 0)
                     self.qp.drawPath(path)
                 else:
@@ -534,7 +543,7 @@ class PixelWidget(QWidget):
                             m = self.qp.fontMetrics()
                             dirhint = ['', '<<', '>>'][direction]
                             cwidth = m.width("%s" % (dirhint))
-                            self.qp.drawText(base_x - cwidth, int((base_y+offs_y)/2), dirhint)
+                            self.qp.drawText(base_x - cwidth, floor((base_y+offs_y)/2), dirhint)
 
             offs_y += 2*base_y + 5
 
@@ -570,20 +579,20 @@ class PixelWidget(QWidget):
         # limit slider height to bar_height
         self.slider_height = max(min(slider_offs_e - slider_offs_s, bar_height - (self.slider_y - bar_y)), 4)
 
-        self.qp.fillRect(int(self.slider_x), int(self.slider_y), self.slider_width, self.slider_height, QColor(0x404040))
+        self.qp.fillRect(floor(self.slider_x), floor(self.slider_y), self.slider_width, self.slider_height, QColor(0x404040))
         #self.slider_coords = ((slider_x, slider_y), (slider_x+slider_width, slider_y+slider_height))
 
         self.qp.setPen(QColor(0x808080))
 
         # draw addresses
         addr_low = '%X:' % self.get_address()
-        addr_hi = '%X' % int(self.get_address() + (int(self.get_pixel_qty() / self.get_pixel_qty_per_line()) - 1) * self.get_pixel_qty_per_line())
+        addr_hi = '%X' % floor(self.get_address() + (floor(self.get_pixel_qty() / self.get_pixel_qty_per_line()) - 1) * self.get_pixel_qty_per_line())
 
         self.qp.drawText(self.rect_x - self.qp.fontMetrics().width(addr_low) - bar_width - 2 * spaces_bar,
             self.qp.fontMetrics().height(),
             addr_low)
         self.qp.drawText(self.rect_x - self.qp.fontMetrics().width(addr_hi) - bar_width - 2 * spaces_bar,
-            self.rect().height() - int(self.qp.fontMetrics().height() / 2),
+            self.rect().height() - floor(self.qp.fontMetrics().height() / 2),
             addr_hi)
 
         return
@@ -597,7 +606,7 @@ class PixelWidget(QWidget):
         return
 
     def paint_text_box(self, borderSize=6):
-        base_x = int(self.rect().width()/2)
+        base_x = floor(self.rect().width()/2)
         if self.textbox_content_type == 0:
             lines = self.get_filter_helptext().splitlines()
         else:
@@ -607,7 +616,7 @@ class PixelWidget(QWidget):
         for line in lines:
             line_width = max(line_width, self.qp.fontMetrics().width(line))
         
-        text_x_pos = int(base_x - line_width/2)
+        text_x_pos = floor(base_x - line_width/2)
 
 
         cm = self.qp.compositionMode()
@@ -615,7 +624,7 @@ class PixelWidget(QWidget):
 
         total_text_height = len(lines) * self.qp.fontMetrics().height()
         self.qp.fillRect(text_x_pos - borderSize,
-            int(self.rect().height() / 2) - int(total_text_height/2) - borderSize,
+            floor(self.rect().height() / 2) - floor(total_text_height/2) - borderSize,
             line_width + borderSize*2,
             total_text_height + borderSize,
             QColor(0x202020))
@@ -624,7 +633,7 @@ class PixelWidget(QWidget):
         #self.qp.setPen(QColor(0x000ff41))
         cur_line = 0
         for line in lines:
-            text_y_pos = int(self.rect().height() / 2) - int(len(lines) / 2) * self.qp.fontMetrics().height() + cur_line * self.qp.fontMetrics().height()
+            text_y_pos = floor(self.rect().height() / 2) - floor(len(lines) / 2) * self.qp.fontMetrics().height() + cur_line * self.qp.fontMetrics().height()
 
             # draw status
             self.qp.drawText(text_x_pos,
@@ -650,7 +659,7 @@ class PixelWidget(QWidget):
         text_x_pos = base_x + 10
         self.qp.setPen(QColor(Qt.white))
         for line in lines:
-            text_y_pos = self.rect().height() - int(self.qp.fontMetrics().height()/2) - (len(lines) - cur_line) * (self.qp.fontMetrics().height())
+            text_y_pos = self.rect().height() - floor(self.qp.fontMetrics().height()/2) - (len(lines) - cur_line) * (self.qp.fontMetrics().height())
 
             # draw status
             self.qp.drawText(text_x_pos,
@@ -668,7 +677,7 @@ class PixelWidget(QWidget):
             if ea < curea or ea >= curea + self.get_pixel_qty():
                 # TODO: verify that ea is valid after following operation
                 if center:
-                    ea -= int(self.get_pixel_qty()/2)
+                    ea -= floor(self.get_pixel_qty()/2)
                 self.set_addr(ea)
             else:
                 self.repaint()
@@ -807,7 +816,7 @@ class PixelWidget(QWidget):
         return
 
     def wheelEvent(self, event):
-        delta = round(event.angleDelta().y()/120)
+        delta = floor(event.angleDelta().y()/120)
 
         # zoom
         if self.key == Qt.Key_Control:
@@ -884,7 +893,7 @@ class PixelWidget(QWidget):
             if y != self.prev_mouse_y:
                 lowest_ea = ida_ida.inf_get_min_ea()
                 highest_ea = ida_ida.inf_get_max_ea()
-                new_offs = int((y/self.babs) * (highest_ea-lowest_ea))
+                new_offs = floor((y/self.babs) * (highest_ea-lowest_ea))
                 #print("%f" % (y/self.babs))
                 self.set_addr(max(min(lowest_ea+new_offs, highest_ea), lowest_ea))
                 return
@@ -922,6 +931,9 @@ class PixelWidget(QWidget):
             
             if self.link_pixel and self.highlight_cursor:
                 highlight_item(ida_bytes.get_item_head(self.get_cursor_address()))
+                #ida_kernwin.request_refresh(True)
+                ida_kernwin.refresh_idaview_anyway()
+
             elif self.highlight_cursor:
                 unhighlight_item()
 
@@ -1023,8 +1035,8 @@ class PixelWidget(QWidget):
         # if address is visible in current window
         if address >= base and address < base + self.get_pixel_qty():
             offs = address - base
-            x = int(offs % self.get_pixel_qty_per_line())
-            y = int(offs / (self.get_pixel_qty_per_line()))
+            x = offs % self.get_pixel_qty_per_line()
+            y = floor(offs / (self.get_pixel_qty_per_line()))
             return (x, y)
         return None
 
@@ -1069,13 +1081,13 @@ class PixelWidget(QWidget):
         self.mouse_abs_y = y
 
         self.elemX = max(0, min(((max(0, x - self.rect_x)) / self.pixelSize), self.get_pixel_qty_per_line() - 1))
-        self.elemY = min(int(y / self.pixelSize), int((self.get_pixel_qty() / self.get_pixel_qty_per_line())) - 1)
+        self.elemY = min(floor(y / self.pixelSize), floor((self.get_pixel_qty() / self.get_pixel_qty_per_line())) - 1)
 
     def get_elem_x(self):
-        return int(self.elemX)
+        return floor(self.elemX)
 
     def get_elem_y(self):
-        return int(self.elemY)
+        return floor(self.elemY)
 
     def _set_offs(self, offs):
         self.offs = offs
@@ -1087,6 +1099,7 @@ class PixelWidget(QWidget):
 class IDACyberForm(ida_kernwin.PluginForm):
     idbh = None
     hook = None
+    ui_hook = None
     windows = []
 
     def __init__(self):
@@ -1096,6 +1109,10 @@ class IDACyberForm(ida_kernwin.PluginForm):
         if IDACyberForm.hook is None:
             IDACyberForm.hook = ScreenEAHook()
             IDACyberForm.hook.hook()
+        
+        if IDACyberForm.ui_hook is None:
+            IDACyberForm.ui_hook = UIHook()
+            IDACyberForm.ui_hook.hook()
 
         self.__clink__ = ida_kernwin.plgform_new()
         self.title = None
@@ -1123,7 +1140,7 @@ class IDACyberForm(ida_kernwin.PluginForm):
             val_address = val_cursor = 'N/A'
         width = self.pw.get_pixel_qty_per_line()
         val_zoom = '%d:1 ' % self.pw.get_zoom()
-        val_pixel = '%dx%d ' % (width, int(self.pw.get_pixel_qty()/width))
+        val_pixel = '%dx%d ' % (width, floor(self.pw.get_pixel_qty()/width))
 
         status_text = ' | '.join((lbl_address + val_address,
             lbl_cursor + val_cursor,
@@ -1203,8 +1220,12 @@ class IDACyberForm(ida_kernwin.PluginForm):
 
         # once all idacyber forms are closed
         if not len(IDACyberForm.windows):
-            IDACyberForm.hook.unhook()
-            IDACyberForm.hook = None
+            if IDACyberForm.hook:
+                IDACyberForm.hook.unhook()
+                IDACyberForm.hook = None
+            if IDACyberForm.ui_hook:
+                IDACyberForm.ui_hook.unhook()
+                IDACyberForm.ui_hook = None
 
     def OnCreate(self, form):
         self.form = form
@@ -1264,15 +1285,6 @@ class IDACyberForm(ida_kernwin.PluginForm):
         return
 
 # -----------------------------------------------------------------------
-class idb_hook_t(ida_idp.IDB_Hooks):
-    def __init__(self):
-        ida_idp.IDB_Hooks.__init__(self)
-
-    def savebase(self):
-        unhighlight_item()
-        return 0
-
-# -----------------------------------------------------------------------
 class IDACyberPlugin(ida_idaapi.plugin_t):
     flags = ida_idaapi.PLUGIN_MOD
     comment = ''
@@ -1283,9 +1295,6 @@ class IDACyberPlugin(ida_idaapi.plugin_t):
     def init(self):
         if not is_ida_version(730):
             return ida_idaapi.PLUGIN_SKIP
-
-        self.idbhook = idb_hook_t()
-        self.idbhook.hook()
 
         self.forms = []
         self.options = (ida_kernwin.PluginForm.WOPN_MENU |
@@ -1307,7 +1316,6 @@ class IDACyberPlugin(ida_idaapi.plugin_t):
         self.forms.append(frm)
 
     def term(self):
-        self.idbhook.unhook()
         # sloppy. windows might have been closed / memory free'd
         for frm in self.forms:
             if frm:

@@ -1,3 +1,5 @@
+from math import floor
+
 from PyQt5.QtGui import QColor
 from PyQt5.QtCore import Qt
 from idacyber import ColorFilter
@@ -29,9 +31,9 @@ RMB toggles cyber mode for even more beef."""
         self.timer = None
         self.numframes = 4
         self.maxbrightness = 100
-        self.factor = int(self.maxbrightness/self.numframes)
+        self.factor = round(self.maxbrightness/self.numframes)
         self.flicker_values = list(range(1, self.numframes+1))+list(range(self.numframes-1,0,-1))
-        self.flicker_idx = self.flicker_values[int(self.numframes/2)]
+        self.flicker_idx = self.flicker_values[floor(self.numframes/2)]
         self.ms = 200
 
         if self.torch:
@@ -55,19 +57,19 @@ RMB toggles cyber mode for even more beef."""
 
     def _apply_shadow_fx(self, color, idx, width, total):
         col = color
-        rows_total = int(total / width)
-        maxrows = int(rows_total / 4)
-        cur_row = int(idx / width)
+        rows_total = floor(total / width)
+        maxrows = floor(rows_total / 4)
+        cur_row = floor(idx / width)
         shadow_blocksize = maxrows*width
         maxdarkness = 70
 
         if cur_row*width < (shadow_blocksize):
             factor = (maxrows-cur_row)
-            darkness = int(factor*maxdarkness/maxrows)
+            darkness = round(factor*maxdarkness/maxrows)
             col = QColor(col).darker(100+darkness).rgb()
         elif cur_row*width >= rows_total*width-shadow_blocksize:
             factor = (maxrows-(rows_total-cur_row))
-            darkness = int(factor*maxdarkness/maxrows)
+            darkness = round(factor*maxdarkness/maxrows)
             col = QColor(col).darker(100+darkness).rgb()       
         return col
 
@@ -80,7 +82,7 @@ RMB toggles cyber mode for even more beef."""
     def on_mb_click(self, event, addr, size, mouse_offs):
         if event.button() == Qt.RightButton:
             if self.torch:
-                self.flicker_idx = self.flicker_values[int(self.numframes/2)]
+                self.flicker_idx = self.flicker_values[floor(self.numframes/2)]
                 if self.timer:
                     unregister_timer(self.timer)
                     self.timer = None
@@ -107,9 +109,9 @@ RMB toggles cyber mode for even more beef."""
                     if self._is_ret(addr+goffs+i):
                         self.ret_locs.append((nret, colidx, addr+goffs+i))
                         nret += 1
-                        col = (~((self.colormap[int(c/(0xff/(len(self.colormap)-1)))])&0xFFFFFF) & 0xFFFFFFFF)
+                        col = (~((self.colormap[floor(c/(0xff/(len(self.colormap)-1)))])&0xFFFFFF) & 0xFFFFFFFF)
                     else:
-                        col = self.colormap[int(c/(0xff/(len(self.colormap)-1)))]
+                        col = self.colormap[floor(c/(0xff/(len(self.colormap)-1)))]
                     colors.append((True,  col))
                     colidx += 1
             else:
@@ -132,7 +134,7 @@ RMB toggles cyber mode for even more beef."""
                         realpxl_idx = targetpxl_idx+neighbour
                         brightness = (abs(row)+abs(neighbour))*10
                         # check top, bottom, left, right borders
-                        if realpxl_idx > 0 and realpxl_idx < size and int(realpxl_idx/width) == int(targetpxl_idx/width):
+                        if realpxl_idx > 0 and realpxl_idx < size and floor(realpxl_idx/width) == floor(targetpxl_idx/width):
                             mapped, col = colors[realpxl_idx]
 
                             if mapped:
@@ -157,7 +159,7 @@ RMB toggles cyber mode for even more beef."""
         offs = 0
         nret = len(self.ret_locs)
         if nret > self.threshold:
-            offs = int(nret/2 - self.threshold/2)
+            offs = floor(nret/2 - self.threshold/2)
         return offs
 
     def on_activate(self, idx):

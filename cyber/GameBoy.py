@@ -16,7 +16,7 @@ class GameBoy(ColorFilter):
                     red = c & 0xE0
                     green = (c << 3) & 0xE0
                     blue = (c << 6) & 0xC0
-                    gray = int(red * 0.3 + green * 0.59 + blue * 0.11)
+                    gray = round(red * 0.3 + green * 0.59 + blue * 0.11)
                     colors.append((True, qRgb(gray, gray, gray)))
             else:
                 colors += [(False, None)]*len(buf)
