@@ -1,8 +1,6 @@
-from PyQt5.QtGui import qRgb, QColor
+from PyQt5.QtGui import QColor
 from PyQt5.QtCore import Qt
 from idacyber import ColorFilter
-from ida_bytes import get_item_size, get_byte, get_item_head, get_item_end
-from ida_name import get_name
 from ida_lines import generate_disasm_line, GENDSM_FORCE_CODE, GENDSM_REMOVE_TAGS
 from ida_ua import can_decode, insn_t, decode_insn
 from ida_idp import is_ret_insn
@@ -31,7 +29,7 @@ RMB toggles cyber mode for even more beef."""
         self.timer = None
         self.numframes = 4
         self.maxbrightness = 100
-        self.factor = self.maxbrightness/self.numframes
+        self.factor = int(self.maxbrightness/self.numframes)
         self.flicker_values = list(range(1, self.numframes+1))+list(range(self.numframes-1,0,-1))
         self.flicker_idx = self.flicker_values[int(self.numframes/2)]
         self.ms = 200
@@ -57,19 +55,19 @@ RMB toggles cyber mode for even more beef."""
 
     def _apply_shadow_fx(self, color, idx, width, total):
         col = color
-        rows_total = total / width
-        maxrows = rows_total / 4
-        cur_row = idx / width
+        rows_total = int(total / width)
+        maxrows = int(rows_total / 4)
+        cur_row = int(idx / width)
         shadow_blocksize = maxrows*width
         maxdarkness = 70
 
         if cur_row*width < (shadow_blocksize):
             factor = (maxrows-cur_row)
-            darkness = factor*maxdarkness/float(maxrows)
+            darkness = int(factor*maxdarkness/maxrows)
             col = QColor(col).darker(100+darkness).rgb()
         elif cur_row*width >= rows_total*width-shadow_blocksize:
             factor = (maxrows-(rows_total-cur_row))
-            darkness = factor*maxdarkness/float(maxrows)
+            darkness = int(factor*maxdarkness/maxrows)
             col = QColor(col).darker(100+darkness).rgb()       
         return col
 
@@ -159,8 +157,8 @@ RMB toggles cyber mode for even more beef."""
         offs = 0
         nret = len(self.ret_locs)
         if nret > self.threshold:
-            offs = nret/2 - self.threshold/2
-        return int(offs)
+            offs = int(nret/2 - self.threshold/2)
+        return offs
 
     def on_activate(self, idx):
         self._enable_timer()
