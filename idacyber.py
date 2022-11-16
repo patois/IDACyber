@@ -164,9 +164,9 @@ class UIHook(ida_kernwin.UI_Hooks):
                         out.entries.push_back(e)
 
 # -----------------------------------------------------------------------
-class ScreenEAHook(ida_kernwin.View_Hooks):
+class ScreenEAHook(ida_kernwin.UI_Hooks):
     def __init__(self):
-        ida_kernwin.View_Hooks.__init__(self)
+        ida_kernwin.UI_Hooks.__init__(self)
         self.sh = SignalHandler()
         self.new_ea = self.sh.ida_newea
     
