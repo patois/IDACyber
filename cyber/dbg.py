@@ -3,24 +3,16 @@ from idacyber import ColorFilter
 from PyQt5.QtCore import Qt
 from ida_idd import regval_t 
 from ida_dbg import (get_reg_val, get_ip_val, get_sp_val,
-    DBG_Hooks, is_step_trace_enabled, is_debugger_on,
-    get_process_state)
+    DBG_Hooks, is_debugger_on, get_process_state)
 from ida_bytes import get_item_size
-from ida_kernwin import (register_timer, unregister_timer,
-    warning, ask_yn, get_kernel_version)
+from ida_kernwin import register_timer, unregister_timer, ask_yn
 from ida_idaapi import get_inf_structure
+from ida_pro import IDA_SDK_VERSION
 
-def get_ida_version():
-    ver = get_kernel_version().split(".")
-    major, minor = ver
-    return ((int(major), int(minor)))
-
-# workaround for IDA7.0
 def is_ida70():
-    major, minor = get_ida_version()
-    return major == 7 and minor == 0
+    return IDA_SDK_VERSION >= 700
 
-def _get_sp_val():
+def get_sp_val_old_impl():
     inf = get_inf_structure()
     proc_name = inf.procName.lower()
     regname = ""
@@ -38,7 +30,7 @@ def _get_sp_val():
         return rv.ival
     return None
 
-def _get_ip_val():
+def get_ip_val_old_impl():
     inf = get_inf_structure()
     proc_name = inf.procName.lower()
     regname = ""
@@ -56,8 +48,8 @@ def _get_ip_val():
         return rv.ival
     return None
 
-get_sp_val = _get_sp_val if is_ida70() else get_sp_val
-get_ip_val = _get_ip_val if is_ida70() else get_ip_val
+c_get_sp_val = get_sp_val if is_ida70() else get_sp_val_old_impl
+c_get_ip_val = get_ip_val if is_ida70() else get_ip_val_old_impl
 
 class DbgHook(DBG_Hooks):
     def __init__(self, pw):
@@ -82,7 +74,7 @@ class DbgHook(DBG_Hooks):
         return
 
     def _add_hit(self):
-        ip = get_ip_val()
+        ip = c_get_ip_val()
         if ip is not None:
             try:
                 data = self.hits[ip]
@@ -102,7 +94,7 @@ class DbgHook(DBG_Hooks):
         return 200
 
     def _request_update_ip_view(self, ip=None):
-        _ip = ip if ip else get_ip_val()
+        _ip = ip if ip else c_get_ip_val()
         if self.pw:
             self.pw.on_filter_request_update(_ip, center=True)
 
@@ -170,8 +162,8 @@ It can be used with step-tracing enabled."""
 
     def on_get_annotations(self, address, size, mouse_offs):
         ann = []
-        ip = get_ip_val()
-        sp = get_sp_val()
+        ip = c_get_ip_val()
+        sp = c_get_sp_val()
         if ip is not None and sp is not None:
             ann.append((ip, Qt.red, "%X (IP)" % ip, Qt.red))
             ann.append((sp, Qt.green, "%X (SP)" % sp, Qt.green))
@@ -183,7 +175,7 @@ It can be used with step-tracing enabled."""
 
         for mapped, buf in buffers:
             if mapped:
-                ip = get_ip_val()
+                ip = c_get_ip_val()
                 i = 0
                 while i < len(buf):
                     if ip is not None and ip == addr + goffs + i and self.hook.highlighted:
@@ -199,7 +191,7 @@ It can be used with step-tracing enabled."""
                             hits = data[0]
                             for j in range(size):
                                 base = self.palette[len(self.palette)-1]
-                                col = QColor(base).darker(100+(float(hits)/self.hook.maxhits)*105).rgb()
+                                col = QColor(base).darker(round(100+(float(hits)/self.hook.maxhits)*105)).rgb()
                                 colors.append((True, col))
                             i += size
                             continue

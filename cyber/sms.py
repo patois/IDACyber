@@ -1,31 +1,20 @@
-from PyQt5.QtGui import qRgb, QColor
 from idacyber import ColorFilter
 from PyQt5.QtCore import Qt
 from ida_idd import regval_t 
 from ida_dbg import (get_reg_val, get_ip_val, get_sp_val,
-    DBG_Hooks, is_step_trace_enabled,
-    is_debugger_on, get_process_state)
+    DBG_Hooks, is_debugger_on, get_process_state)
 from ida_bytes import get_item_size
-from ida_kernwin import (register_timer, unregister_timer,
-    warning, ask_yn, get_kernel_version)
+from ida_kernwin import register_timer, unregister_timer
 from ida_funcs import get_func, get_func_name
-from ida_frame import (frame_off_lvars, frame_off_savregs,
-    frame_off_retaddr, get_frame, get_spd)
-from ida_struct import (get_struc_name, get_member_name,
-    get_struc_size)
+from ida_frame import get_frame, get_spd
+from ida_struct import get_member_name, get_struc_size
 from ida_idaapi import get_inf_structure
+from ida_pro import IDA_SDK_VERSION
 
-def get_ida_version():
-    ver = get_kernel_version().split(".")
-    major, minor = ver
-    return ((int(major), int(minor)))
-
-# workaround for IDA7.0
 def is_ida70():
-    major, minor = get_ida_version()
-    return major == 7 and minor == 0
+    return IDA_SDK_VERSION >= 700
 
-def _get_sp_val():
+def get_sp_val_old_impl():
     inf = get_inf_structure()
     proc_name = inf.procName.lower()
     regname = ""
@@ -43,7 +32,7 @@ def _get_sp_val():
         return rv.ival
     return None
 
-def _get_ip_val():
+def get_ip_val_old_impl():
     inf = get_inf_structure()
     proc_name = inf.procName.lower()
     regname = ""
@@ -61,8 +50,8 @@ def _get_ip_val():
         return rv.ival
     return None
 
-get_sp_val = _get_sp_val if is_ida70() else get_sp_val
-get_ip_val = _get_ip_val if is_ida70() else get_ip_val
+c_get_sp_val = get_sp_val if is_ida70() else get_sp_val_old_impl
+c_get_ip_val = get_ip_val if is_ida70() else get_ip_val_old_impl
 
 class FrameInfo:
     def __init__(self):
@@ -73,8 +62,8 @@ class FrameInfo:
 
     def _get_frame(self):
         result = False
-        sp = get_sp_val()
-        ip = get_ip_val()
+        sp = c_get_sp_val()
+        ip = c_get_ip_val()
 
         if ip and sp:
             f = get_func(ip)
@@ -130,7 +119,7 @@ class DbgHook(DBG_Hooks):
         return 300
 
     def _request_update_viewer(self, sp=None):
-        _sp = sp if sp else get_sp_val()
+        _sp = sp if sp else c_get_sp_val()
         if self.pw:
             self.pw.on_filter_request_update(_sp, center=True)
 
@@ -185,7 +174,6 @@ through memory (Press F3 for help)
             self.sp_arrow = not self.sp_arrow
             self.palette = self.palettes[self.cur_palette]
 
-
     def on_activate(self, idx):
         self.hook = DbgHook(self.pw)
         self.hook.hook()
@@ -201,8 +189,8 @@ through memory (Press F3 for help)
 
     def on_get_annotations(self, address, size, mouse_offs):
         annotations = []
-        sp = get_sp_val()
-        ip = get_ip_val()
+        sp = c_get_sp_val()
+        ip = c_get_ip_val()
         fi = FrameInfo()
 
         if sp and ip:
@@ -249,9 +237,6 @@ through memory (Press F3 for help)
                     annotations.append((None, None, " cursor: %s+0x%x" % (name,
                         address + mouse_offs - (frame_start_ea+offs)),
                         self.palette[3]))
-
-
-
         else:
             annotations.append((None, None, "Debugger inactive", self.palette[4]))
 
@@ -262,8 +247,8 @@ through memory (Press F3 for help)
         goffs = 0
         mouse_boundaries = None
 
-        sp = get_sp_val()
-        ip = get_ip_val()
+        sp = c_get_sp_val()
+        #ip = c_get_ip_val()
         fi = FrameInfo()
 
         if mouse_offs is not None:
