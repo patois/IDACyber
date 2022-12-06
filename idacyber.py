@@ -14,8 +14,6 @@ import ida_diskio
 import ida_bytes
 import ida_segment
 import ida_idaapi
-import ida_nalt
-import ida_idp
 import ida_ida
 from ida_pro import IDA_SDK_VERSION
 
@@ -577,7 +575,7 @@ class PixelWidget(QWidget):
         self.slider_y = bar_y + slider_offs_s
         self.slider_width = bar_width - 2 * spaces_slider
         # limit slider height to bar_height
-        self.slider_height = max(min(slider_offs_e - slider_offs_s, bar_height - (self.slider_y - bar_y)), 4)
+        self.slider_height = floor(max(min(slider_offs_e - slider_offs_s, bar_height - (self.slider_y - bar_y)), 4))
 
         self.qp.fillRect(floor(self.slider_x), floor(self.slider_y), self.slider_width, self.slider_height, QColor(0x404040))
         #self.slider_coords = ((slider_x, slider_y), (slider_x+slider_width, slider_y+slider_height))
